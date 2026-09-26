@@ -186,14 +186,23 @@ export const sendToClerk = internalAction({
       await ctx.runMutation(internal.invitations.recordResult, { invitationId, error: "Clerk key not configured" });
       return null;
     }
+    // Without a redirect, Clerk leaves the invitee on its own "cannot redirect to
+    // your application" page after sign-up. Better to fail visibly here.
     const base = (env.ADMIN_APP_URL ?? "").replace(/\/+$/, "");
+    if (!base) {
+      await ctx.runMutation(internal.invitations.recordResult, {
+        invitationId,
+        error: "Admin URL not configured (set ADMIN_APP_URL in Convex)",
+      });
+      return null;
+    }
     const response = await fetch("https://api.clerk.com/v1/invitations", {
       method: "POST",
       headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         email_address: inv.email,
         public_metadata: { hotelId: inv.hotelId, role: inv.role },
-        redirect_url: base ? `${base}/sign-up` : undefined,
+        redirect_url: `${base}/sign-up`,
         notify: true,
         ignore_existing: true,
       }),
