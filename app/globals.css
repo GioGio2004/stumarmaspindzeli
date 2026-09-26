@@ -216,8 +216,8 @@
 }
 
 /*
- * Scrollbars. The page scrollbar is replaced by <ScrollIndicator /> (a floating
- * pill). Inner scroll areas get a slim rounded bar that follows the theme.
+ * Scrollbars: the page and inner scroll areas get a slim rounded bar that
+ * follows the theme.
  */
 * {
   scrollbar-width: thin;
@@ -238,12 +238,6 @@
 }
 *::-webkit-scrollbar-thumb:hover {
   background-color: var(--lime);
-}
-html {
-  scrollbar-width: none;
-}
-html::-webkit-scrollbar {
-  display: none;
 }
 /* Swipe rows (tabs, board columns, bottom bar) scroll without a visible bar. */
 .no-scrollbar {

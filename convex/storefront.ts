@@ -1,8 +1,8 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
-import { cleanOptionalText, cleanText, fail, requireRole } from "./lib/access";
-import { getSettings, seedStorefrontDefaults } from "./lib/storefrontDefaults";
+import { cleanOptionalText, cleanText, fail, memberOrSignedOut, requireRole } from "./lib/access";
+import { DEFAULT_SETTINGS, getSettings, seedStorefrontDefaults } from "./lib/storefrontDefaults";
 import schema, {
   catalogSectionValidator,
   storefrontSettingsFields,
@@ -81,7 +81,9 @@ export const get = query({
     tiles: v.array(schema.doc("storefrontTiles")),
   }),
   handler: async (ctx, { hotelId }) => {
-    await requireRole(ctx, hotelId, ["manager"]);
+    if ((await memberOrSignedOut(ctx, hotelId, ["manager"])) === null) {
+      return { settings: DEFAULT_SETTINGS, tiles: [] };
+    }
     const { settings } = await getSettings(ctx, hotelId);
     const tiles = await ctx.db
       .query("storefrontTiles")

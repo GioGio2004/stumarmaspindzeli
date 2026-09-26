@@ -2,13 +2,14 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import {
-  getMember,
   canSeeDepartment,
   canWorkDepartment,
   checkInt,
   cleanOptionalText,
   cleanText,
   fail,
+  getMember,
+  memberOrSignedOut,
   requireDepartment,
   requireMember,
   requireRole,
@@ -129,7 +130,9 @@ export const board = query({
     done: v.array(taskSummaryValidator),
   }),
   handler: async (ctx, args) => {
-    const { membership } = await requireMember(ctx, args.hotelId);
+    const member = await memberOrSignedOut(ctx, args.hotelId);
+    if (member === null) return { open: [], accepted: [], in_progress: [], done: [] };
+    const { membership } = member;
     let departments = visibleDepartments(membership);
     if (args.departmentId !== undefined) {
       if (!canSeeDepartment(membership, args.departmentId)) {
@@ -168,7 +171,9 @@ export const myQueue = query({
   args: { hotelId: v.id("hotels") },
   returns: v.array(taskSummaryValidator),
   handler: async (ctx, { hotelId }) => {
-    const { user, membership } = await requireMember(ctx, hotelId);
+    const member = await memberOrSignedOut(ctx, hotelId);
+    if (member === null) return [];
+    const { user, membership } = member;
     const byId = new Map<Id<"tasks">, Doc<"tasks">>();
     const depts = membership.departmentIds ?? [];
     for (const status of OPEN_STATUSES) {

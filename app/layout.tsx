@@ -5,7 +5,6 @@ import { Caveat, Noto_Sans_Georgian, Red_Hat_Display } from "next/font/google";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
 import { StoreUser } from "@/components/StoreUser";
 import { ToastProvider } from "@/components/kit";
-import { ScrollIndicator } from "@/components/scroll-indicator";
 import { ThemeProvider } from "@/components/theme";
 import "./globals.css";
 
@@ -69,7 +68,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <ConvexClientProvider>
               <StoreUser />
               <ToastProvider>{children}</ToastProvider>
-              <ScrollIndicator />
             </ConvexClientProvider>
           </ClerkProvider>
         </ThemeProvider>

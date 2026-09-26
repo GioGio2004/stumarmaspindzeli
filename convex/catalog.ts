@@ -7,8 +7,8 @@ import {
   cleanOptionalText,
   cleanText,
   fail,
+  memberOrSignedOut,
   requireDepartment,
-  requireMember,
   requireRole,
 } from "./lib/access";
 import { seedCatalogDefaults } from "./lib/defaults";
@@ -110,7 +110,7 @@ export const list = query({
   args: { hotelId: v.id("hotels") },
   returns: v.array(itemListValidator),
   handler: async (ctx, { hotelId }) => {
-    await requireMember(ctx, hotelId);
+    if ((await memberOrSignedOut(ctx, hotelId)) === null) return [];
     const items = await catalogForHotel(ctx, hotelId);
     const names = new Map<Id<"departments">, string | undefined>();
     const out = [];

@@ -6,8 +6,8 @@ import {
   cleanOptionalText,
   cleanText,
   fail,
+  memberOrSignedOut,
   randomToken,
-  requireMember,
   requireRole,
 } from "./lib/access";
 import { openTasksForHotel } from "./lib/tasks";
@@ -59,7 +59,9 @@ export const list = query({
     }),
   ),
   handler: async (ctx, { hotelId }) => {
-    const { membership } = await requireMember(ctx, hotelId);
+    const member = await memberOrSignedOut(ctx, hotelId);
+    if (member === null) return [];
+    const { membership } = member;
     const showToken = membership.role !== "staff";
     const rooms = await ctx.db
       .query("rooms")

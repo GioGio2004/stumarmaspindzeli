@@ -7,6 +7,7 @@ import {
   checkTimestamp,
   cleanOptionalText,
   fail,
+  memberOrSignedOut,
   newStayCredentials,
   requireRole,
 } from "./lib/access";
@@ -135,7 +136,7 @@ export const listActive = query({
   ),
   handler: async (ctx, { hotelId }) => {
     // Guest details are for the front desk, not every staff member.
-    await requireRole(ctx, hotelId, ["manager", "reception"]);
+    if ((await memberOrSignedOut(ctx, hotelId, ["manager", "reception"])) === null) return [];
     const stays = await ctx.db
       .query("stays")
       .withIndex("by_hotelId_and_status", (q) => q.eq("hotelId", hotelId).eq("status", "active"))
@@ -171,7 +172,9 @@ export const get = query({
   handler: async (ctx, { stayId }) => {
     const stay = await ctx.db.get("stays", stayId);
     if (stay === null) return null;
-    const { membership } = await requireRole(ctx, stay.hotelId, ["manager", "reception"]);
+    const member = await memberOrSignedOut(ctx, stay.hotelId, ["manager", "reception"]);
+    if (member === null) return null;
+    const { membership } = member;
     const room = await ctx.db.get("rooms", stay.roomId);
     const tasks = await ctx.db
       .query("tasks")

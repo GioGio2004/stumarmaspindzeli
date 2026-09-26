@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { env, internalAction, internalMutation, internalQuery, mutation, query, type MutationCtx } from "./_generated/server";
-import { fail, requireRole } from "./lib/access";
+import { fail, memberOrSignedOut, requireRole } from "./lib/access";
 import { grantMembership } from "./lib/invitations";
 import { roleValidator } from "./schema";
 
@@ -34,7 +34,7 @@ export const list = query({
     }),
   ),
   handler: async (ctx, { hotelId }) => {
-    await requireRole(ctx, hotelId, ["manager"]);
+    if ((await memberOrSignedOut(ctx, hotelId, ["manager"])) === null) return [];
     const rows = await ctx.db
       .query("invitations")
       .withIndex("by_hotelId", (q) => q.eq("hotelId", hotelId))

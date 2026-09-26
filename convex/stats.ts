@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { query } from "./_generated/server";
-import { fail, requireRole } from "./lib/access";
+import { fail, memberOrSignedOut } from "./lib/access";
 import {
   addDays,
   dailyStatsValidator,
@@ -43,8 +43,19 @@ export const overview = query({
     topItems: v.array(v.object({ key: v.string(), title: v.string(), count: v.number() })),
   }),
   handler: async (ctx, { hotelId, day }) => {
-    await requireRole(ctx, hotelId, ["manager", "reception"]);
     if (!isDayKey(day)) fail("INVALID", "day must be YYYY-MM-DD");
+    if ((await memberOrSignedOut(ctx, hotelId, ["manager", "reception"])) === null) {
+      return {
+        inHouse: 0,
+        roomsTotal: 0,
+        openByStatus: { open: 0, accepted: 0, in_progress: 0 },
+        escalatedOpen: 0,
+        today: emptyStats(day),
+        last7: [],
+        departmentLoad: [],
+        topItems: [],
+      };
+    }
 
     const stays = await ctx.db
       .query("stays")
@@ -166,7 +177,7 @@ export const activity = query({
     }),
   ),
   handler: async (ctx, { hotelId }) => {
-    await requireRole(ctx, hotelId, ["manager", "reception"]);
+    if ((await memberOrSignedOut(ctx, hotelId, ["manager", "reception"])) === null) return [];
     const roomCache = new Map<Id<"rooms">, string | undefined>();
     const roomNumber = async (id: Id<"rooms"> | undefined) => {
       if (!id) return undefined;

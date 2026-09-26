@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query, type MutationCtx } from "./_generated/server";
-import { cleanOptionalText, fail, requireDepartment, requireRole } from "./lib/access";
+import { cleanOptionalText, fail, memberOrSignedOut, requireDepartment, requireRole } from "./lib/access";
 import { localParts } from "./lib/stats";
 import { insertTask } from "./lib/tasks";
 import { compareRoomNumbers } from "./rooms";
@@ -48,7 +48,7 @@ export const list = query({
     schema.doc("routines").extend({ itemTitle: v.string(), departmentName: v.string() }),
   ),
   handler: async (ctx, { hotelId }) => {
-    await requireRole(ctx, hotelId, ["manager"]);
+    if ((await memberOrSignedOut(ctx, hotelId, ["manager"])) === null) return [];
     const rows = await ctx.db
       .query("routines")
       .withIndex("by_hotelId", (q) => q.eq("hotelId", hotelId))

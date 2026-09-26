@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { checkInt, checkNumber, cleanText, fail, requireMember, requireRole } from "./lib/access";
+import { checkInt, checkNumber, cleanText, fail, memberOrSignedOut, requireRole } from "./lib/access";
 import { OPEN_STATUSES } from "./lib/tasks";
 import schema from "./schema";
 
@@ -18,7 +18,7 @@ export const list = query({
   args: { hotelId: v.id("hotels") },
   returns: v.array(schema.doc("departments").extend({ openTaskCount: v.number() })),
   handler: async (ctx, { hotelId }) => {
-    await requireMember(ctx, hotelId);
+    if ((await memberOrSignedOut(ctx, hotelId)) === null) return [];
     const rows = await ctx.db
       .query("departments")
       .withIndex("by_hotelId", (q) => q.eq("hotelId", hotelId))

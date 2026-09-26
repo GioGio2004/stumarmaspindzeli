@@ -8,7 +8,9 @@ import { requireUser } from "./users";
 
 // Supervisor-only overview of every hotel and every person on the platform.
 
-async function requireSupervisor(ctx: Parameters<typeof requireUser>[0]) {
+/** The supervisor, or null when nobody is signed in (see memberOrSignedOut in lib/access). */
+async function supervisorOrSignedOut(ctx: Parameters<typeof requireUser>[0]) {
+  if ((await ctx.auth.getUserIdentity()) === null) return null;
   const user = await requireUser(ctx);
   if (!isSupervisor(user)) fail("FORBIDDEN", "Supervisor only");
   return user;
@@ -25,7 +27,7 @@ export const hotels = query({
     }),
   ),
   handler: async (ctx) => {
-    await requireSupervisor(ctx);
+    if ((await supervisorOrSignedOut(ctx)) === null) return [];
     // Bounded so the whole query stays within Convex read limits.
     const hotels = await ctx.db.query("hotels").take(40);
     const out = [];
@@ -58,7 +60,7 @@ export const users = query({
     }),
   ),
   handler: async (ctx) => {
-    await requireSupervisor(ctx);
+    if ((await supervisorOrSignedOut(ctx)) === null) return [];
     const users = await ctx.db.query("users").take(300);
     const hotelNames = new Map<string, string>();
     const out = [];

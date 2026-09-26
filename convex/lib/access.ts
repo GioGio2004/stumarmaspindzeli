@@ -52,6 +52,22 @@ export async function requireRole(
   return member;
 }
 
+/**
+ * requireMember / requireRole for queries, except that nobody signed in gives
+ * null instead of an error. Signing out (or a session ending) re-runs every
+ * open query without a login a moment before the page unmounts; the query then
+ * answers with an empty result instead of logging UNAUTHENTICATED. Signed-in
+ * callers get exactly the same checks.
+ */
+export async function memberOrSignedOut(
+  ctx: QueryCtx,
+  hotelId: Id<"hotels">,
+  roles?: readonly Role[],
+): Promise<Member | null> {
+  if ((await ctx.auth.getUserIdentity()) === null) return null;
+  return roles === undefined ? await requireMember(ctx, hotelId) : await requireRole(ctx, hotelId, roles);
+}
+
 /** Can this member accept / work tasks of the department? Managers always can. */
 export function canWorkDepartment(
   membership: Doc<"memberships">,

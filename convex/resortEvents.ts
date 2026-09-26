@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx } from "./_generated/server";
-import { checkNumber, cleanOptionalText, cleanText, fail, requireRole } from "./lib/access";
+import { checkNumber, cleanOptionalText, cleanText, fail, memberOrSignedOut, requireRole } from "./lib/access";
 import schema from "./schema";
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -37,7 +37,7 @@ export const list = query({
   args: { hotelId: v.id("hotels") },
   returns: v.array(schema.doc("resortEvents")),
   handler: async (ctx, { hotelId }) => {
-    await requireRole(ctx, hotelId, ["manager"]);
+    if ((await memberOrSignedOut(ctx, hotelId, ["manager"])) === null) return [];
     const rows = await ctx.db
       .query("resortEvents")
       .withIndex("by_hotelId", (q) => q.eq("hotelId", hotelId))

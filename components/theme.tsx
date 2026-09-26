@@ -6,10 +6,16 @@ import { ThemeProvider as NextThemes, useTheme } from "next-themes";
 import { useSyncExternalStore, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
+// next-themes sets the theme with an inline script in the server HTML. If React
+// ever renders it on the client (e.g. recovering from an error), React 19 warns
+// about script tags; marking it as a JSON data block there keeps it quiet. The
+// script carries suppressHydrationWarning, so the differing type is fine.
+const scriptProps = { type: typeof window === "undefined" ? "text/javascript" : "application/json" };
+
 /** Follows the device setting by default; people can pin light or dark. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
-    <NextThemes attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <NextThemes attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange scriptProps={scriptProps}>
       {children}
     </NextThemes>
   );
