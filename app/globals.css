@@ -1,0 +1,249 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Guest storefront theme. Palette and shapes follow the Tabela reference:
+ * white page, warm stone panels, graphite cards, lime used sparingly.
+ */
+
+@theme inline {
+  --font-sans: var(--font-red-hat), var(--font-noto-georgian), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-red-hat), var(--font-noto-georgian), ui-sans-serif, system-ui, sans-serif;
+  --font-script: var(--font-caveat), cursive;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* brand palette */
+  --color-panel: var(--panel);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-graphite: var(--graphite);
+  --color-lime: var(--lime);
+  --color-lime-soft: var(--lime-soft);
+  --color-slate-ink: var(--slate-ink);
+  --color-panel-hover: var(--panel-hover);
+  --color-scrim: var(--scrim);
+  --color-on-ink-accent: var(--on-ink-accent);
+
+  /* shadcn tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --panel: #ecebe8;
+  --paper: #f8f8f6;
+  --ink: #2d2d2d;
+  --graphite: #434343;
+  --lime: #e6fb2d;
+  --lime-soft: #e3ef7a;
+  --slate-ink: #29303d;
+  --panel-hover: #e2e0db;
+  --on-ink-accent: var(--lime);
+  --scrim: rgb(10 10 9 / 0.45);
+
+  --background: #ffffff;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
+  --popover: #ffffff;
+  --popover-foreground: #111111;
+  --primary: var(--ink);
+  --primary-foreground: #ffffff;
+  --secondary: var(--panel);
+  --secondary-foreground: #111111;
+  --muted: #f3f2ef;
+  --muted-foreground: #66665f;
+  --accent: var(--lime);
+  --accent-foreground: #111111;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #e2e0db;
+  --input: #e2e0db;
+  --ring: var(--ink);
+  --chart-1: var(--lime);
+  --chart-2: var(--graphite);
+  --chart-3: #8a8a84;
+  --chart-4: var(--panel);
+  --chart-5: var(--ink);
+  --radius: 1.5rem;
+  --sidebar: var(--paper);
+  --sidebar-foreground: #111111;
+  --sidebar-primary: var(--ink);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--panel);
+  --sidebar-accent-foreground: #111111;
+  --sidebar-border: #e2e0db;
+  --sidebar-ring: var(--ink);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/*
+ * Dark theme. `.dark` on <html> comes from next-themes (system by default).
+ * Most screens use bg-white / text-black/xx, so dark mode swaps those two
+ * variables instead of rewriting every class. Surfaces that must keep their
+ * own contrast (lime, graphite cards, ink pills) re-scope the pair locally.
+ */
+.dark {
+  color-scheme: dark;
+  --color-white: #22221f; /* cards */
+  --color-black: #f3f2ed; /* text */
+
+  --panel: #181816;
+  --paper: #1c1c1a;
+  --ink: #f3f2ed;
+  --graphite: #2d2d2a;
+  --lime-soft: #d6e768;
+  --slate-ink: #c9ccd4;
+  --panel-hover: #2a2a27;
+  --on-ink-accent: #4f5e00;
+
+  --background: #0f0f0e;
+  --foreground: #f3f2ed;
+  --card: #22221f;
+  --card-foreground: #f3f2ed;
+  --popover: #22221f;
+  --popover-foreground: #f3f2ed;
+  --primary: #f3f2ed;
+  --primary-foreground: #111110;
+  --secondary: #181816;
+  --secondary-foreground: #f3f2ed;
+  --muted: #1c1c1a;
+  --muted-foreground: #a3a39b;
+  --accent: var(--lime);
+  --accent-foreground: #111110;
+  --border: #2f2f2c;
+  --input: #2f2f2c;
+  --ring: #f3f2ed;
+}
+
+/* Lime always carries dark text, in both themes. */
+.dark .bg-lime,
+.dark .hover\:bg-lime:hover,
+.dark .group:hover .group-hover\:bg-lime {
+  --color-black: #111110;
+  --color-white: #ffffff;
+  color: #111110;
+}
+
+/* Contrast cards stay "the other colour": light text on charcoal. */
+.dark .bg-graphite {
+  --color-white: #f3f2ed;
+  --color-black: #111110;
+  --paper: #f8f8f6;
+  --panel: #ecebe8;
+  --panel-hover: #e2e0db;
+}
+
+/* Ink turns light in dark mode, so lime marks on it need a deeper shade. */
+.dark .bg-ink .text-lime,
+.dark .bg-ink.text-lime {
+  color: var(--on-ink-accent);
+}
+
+/* Soft status colours for dark surfaces. */
+.dark .bg-red-50 {
+  background-color: rgb(239 68 68 / 0.14);
+}
+.dark .text-red-700,
+.dark .text-red-800,
+.dark .text-red-600 {
+  color: #fca5a5;
+}
+.dark .ring-red-200,
+.dark .ring-red-300 {
+  --tw-ring-color: rgb(239 68 68 / 0.35);
+}
+.dark .bg-emerald-50 {
+  background-color: rgb(16 185 129 / 0.14);
+}
+.dark .text-emerald-700 {
+  color: #6ee7b7;
+}
+
+/*
+ * Scrollbars. The page scrollbar is replaced by <ScrollIndicator /> (a floating
+ * pill). Inner scroll areas get a slim rounded bar that follows the theme.
+ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-black) 22%, transparent) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+  background-color: color-mix(in oklab, var(--color-black) 22%, transparent);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--lime);
+}
+html {
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar {
+  display: none;
+}
+/* Swipe rows (tabs, board columns, bottom bar) scroll without a visible bar. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
