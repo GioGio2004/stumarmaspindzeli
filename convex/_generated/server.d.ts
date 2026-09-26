@@ -33,12 +33,12 @@ type Env = {
   readonly ADMIN_APP_URL: string | undefined;
   readonly CLERK_JWT_ISSUER_DOMAIN: string;
   readonly CLERK_SECRET_KEY: string | undefined;
-  readonly CLERK_WEBHOOK_SECRET: string;
+  readonly CLERK_WEBHOOK_SECRET: string | undefined;
   readonly GEMINI_API_KEY: string | undefined;
   readonly SUPERVISOR_CLERK_IDS: string | undefined;
-  readonly VAPID_PRIVATE_KEY: string;
-  readonly VAPID_PUBLIC_KEY: string;
-  readonly VAPID_SUBJECT: string;
+  readonly VAPID_PRIVATE_KEY: string | undefined;
+  readonly VAPID_PUBLIC_KEY: string | undefined;
+  readonly VAPID_SUBJECT: string | undefined;
 };
 
 /**

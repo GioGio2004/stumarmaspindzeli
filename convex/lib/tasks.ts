@@ -87,6 +87,8 @@ export async function insertTask(
     statItemKeys?: string[];
     /** Send the department push (default true). */
     notify?: boolean;
+    /** Schedule the escalation check (default true; routines turn it off). */
+    escalate?: boolean;
   },
 ): Promise<Id<"tasks">> {
   const now = Date.now();
@@ -115,21 +117,24 @@ export async function insertTask(
     price,
   });
 
-  const itemKeys = args.statItemKeys ?? (args.item ? [itemStatKey(args.item)] : []);
-  await recordStats(ctx, args.hotel, now, {
-    requests: 1,
-    departmentId: args.department._id,
-    itemKey: itemKeys[0],
-  });
-  // Extra items of a multi-item order only bump byItem.
-  for (const key of itemKeys.slice(1)) {
-    await recordStats(ctx, args.hotel, now, { itemOnly: key });
+  // Guest KPIs count guest requests only, not routines or staff-created work.
+  if (args.source === "guest") {
+    const itemKeys = args.statItemKeys ?? (args.item ? [itemStatKey(args.item)] : []);
+    await recordStats(ctx, args.hotel, now, {
+      requests: 1,
+      departmentId: args.department._id,
+      itemKey: itemKeys[0],
+    });
+    // Extra items of a multi-item order only bump byItem.
+    for (const key of itemKeys.slice(1)) {
+      await recordStats(ctx, args.hotel, now, { itemOnly: key });
+    }
   }
 
   if (args.notify !== false) {
     await ctx.scheduler.runAfter(0, internal.push.notifyTask, { taskId });
   }
-  await scheduleEscalation(ctx, taskId, args.department);
+  if (args.escalate !== false) await scheduleEscalation(ctx, taskId, args.department);
   return taskId;
 }
 

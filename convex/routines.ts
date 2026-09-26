@@ -9,7 +9,8 @@ import { compareRoomNumbers } from "./rooms";
 import schema, { routineScopeValidator } from "./schema";
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-const MAX_TASKS_PER_RUN = 150;
+const MAX_TASKS_PER_RUN = 100; // per transaction; larger runs continue in a new one
+const MAX_ROOMS = 2000;
 
 function cleanTime(time: string): string {
   const t = time.trim();
@@ -165,13 +166,10 @@ export const tick = internalMutation({
   returns: v.object({ scheduled: v.number() }),
   handler: async (ctx) => {
     const now = Date.now();
-    const routines = await ctx.db
-      .query("routines")
-      .withIndex("by_active", (q) => q.eq("active", true))
-      .take(500);
     const tz = new Map<Id<"hotels">, string | undefined>();
     let scheduled = 0;
-    for (const r of routines) {
+    // Stream every active routine (no silent cap).
+    for await (const r of ctx.db.query("routines").withIndex("by_active", (q) => q.eq("active", true))) {
       if (!tz.has(r.hotelId)) tz.set(r.hotelId, (await ctx.db.get("hotels", r.hotelId))?.timezone);
       const local = localParts(now, tz.get(r.hotelId));
       if (!r.daysOfWeek.includes(local.dow)) continue;
@@ -190,12 +188,16 @@ export const tick = internalMutation({
 
 /** Create the routine's tasks for `day`. Idempotent per day. */
 export const runRoutine = internalMutation({
-  args: { routineId: v.id("routines"), day: v.string() },
+  // offset > 0 continues a large run in the next transaction.
+  args: { routineId: v.id("routines"), day: v.string(), offset: v.optional(v.number()) },
   returns: v.object({ created: v.number() }),
-  handler: async (ctx, { routineId, day }) => {
+  handler: async (ctx, { routineId, day, offset = 0 }) => {
     const routine = await ctx.db.get("routines", routineId);
-    if (routine === null || !routine.active || routine.lastRunDay === day) return { created: 0 };
-    await ctx.db.patch("routines", routineId, { lastRunDay: day });
+    if (routine === null || !routine.active) return { created: 0 };
+    if (offset === 0) {
+      if (routine.lastRunDay === day) return { created: 0 };
+      await ctx.db.patch("routines", routineId, { lastRunDay: day });
+    }
 
     const hotel = await ctx.db.get("hotels", routine.hotelId);
     const item = await ctx.db.get("catalogItems", routine.itemId);
@@ -219,7 +221,7 @@ export const runRoutine = internalMutation({
       const stays = await ctx.db
         .query("stays")
         .withIndex("by_hotelId_and_status", (q) => q.eq("hotelId", hotel._id).eq("status", "active"))
-        .take(MAX_TASKS_PER_RUN);
+        .take(MAX_ROOMS);
       for (const stay of stays) {
         const room = await ctx.db.get("rooms", stay.roomId);
         if (room && room.active) targets.push({ room, stay });
@@ -228,7 +230,7 @@ export const runRoutine = internalMutation({
       const rooms = await ctx.db
         .query("rooms")
         .withIndex("by_hotelId", (q) => q.eq("hotelId", hotel._id))
-        .take(500);
+        .take(MAX_ROOMS);
       for (const room of rooms.filter((r) => r.active)) {
         let stay: Doc<"stays"> | null = null;
         if (room.currentStayId) {
@@ -238,13 +240,12 @@ export const runRoutine = internalMutation({
         targets.push({ room, stay });
       }
     }
-    targets = targets
-      .sort((a, b) => compareRoomNumbers(a.room?.number ?? "", b.room?.number ?? ""))
-      .slice(0, MAX_TASKS_PER_RUN);
+    targets.sort((a, b) => compareRoomNumbers(a.room?.number ?? "", b.room?.number ?? ""));
+    const batch = targets.slice(offset, offset + MAX_TASKS_PER_RUN);
 
     const title = routine.title ?? item.title;
     let created = 0;
-    for (const { room, stay } of targets) {
+    for (const { room, stay } of batch) {
       await insertTask(ctx, {
         hotel,
         department,
@@ -254,10 +255,19 @@ export const runRoutine = internalMutation({
         title,
         source: "manager",
         priority: "normal",
-        // One push per run, not one per room.
-        notify: created === 0,
+        // One push for the whole run, not one per room.
+        notify: offset === 0 && created === 0,
+        // Per-room runs don't page managers for every room.
+        escalate: routine.scope === "once",
       });
       created++;
+    }
+    if (offset + MAX_TASKS_PER_RUN < targets.length) {
+      await ctx.scheduler.runAfter(0, internal.routines.runRoutine, {
+        routineId,
+        day,
+        offset: offset + MAX_TASKS_PER_RUN,
+      });
     }
     return { created };
   },

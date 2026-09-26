@@ -26,21 +26,22 @@ export const hotels = query({
   ),
   handler: async (ctx) => {
     await requireSupervisor(ctx);
-    const hotels = await ctx.db.query("hotels").take(200);
+    // Bounded so the whole query stays within Convex read limits.
+    const hotels = await ctx.db.query("hotels").take(40);
     const out = [];
     for (const hotel of hotels) {
       const members = await ctx.db
         .query("memberships")
         .withIndex("by_hotelId", (q) => q.eq("hotelId", hotel._id))
-        .take(500);
+        .take(200);
       const rooms = await ctx.db
         .query("rooms")
         .withIndex("by_hotelId", (q) => q.eq("hotelId", hotel._id))
-        .take(500);
+        .take(300);
       const inHouse = await ctx.db
         .query("stays")
         .withIndex("by_hotelId_and_status", (q) => q.eq("hotelId", hotel._id).eq("status", "active"))
-        .take(500);
+        .take(300);
       out.push({ hotel, memberCount: members.length, roomCount: rooms.length, inHouse: inHouse.length });
     }
     return out;
@@ -58,7 +59,7 @@ export const users = query({
   ),
   handler: async (ctx) => {
     await requireSupervisor(ctx);
-    const users = await ctx.db.query("users").take(500);
+    const users = await ctx.db.query("users").take(300);
     const hotelNames = new Map<string, string>();
     const out = [];
     for (const user of users) {

@@ -7,7 +7,7 @@ import {
   checkTimestamp,
   cleanOptionalText,
   fail,
-  requireMember,
+  newStayCredentials,
   requireRole,
 } from "./lib/access";
 import { makeEnricher, openTasksForHotel, taskSummaryValidator } from "./lib/tasks";
@@ -24,7 +24,16 @@ async function loadStayAsDesk(ctx: MutationCtx, stayId: Id<"stays">) {
 
 /** Close a stay and detach it from its room. Shared with the auto-checkout cron. */
 export async function closeStay(ctx: MutationCtx, stay: Doc<"stays">, now: number) {
-  await ctx.db.patch("stays", stay._id, { status: "checked_out", checkedOutAt: now });
+  // The guest key dies with the stay; requests nobody started are cancelled.
+  await ctx.db.patch("stays", stay._id, { status: "checked_out", checkedOutAt: now, guestKey: undefined });
+  const open = await ctx.db
+    .query("tasks")
+    .withIndex("by_stayId", (q) => q.eq("stayId", stay._id))
+    .order("desc")
+    .take(100);
+  for (const t of open) {
+    if (t.status === "open") await ctx.db.patch("tasks", t._id, { status: "cancelled", cancelledAt: now });
+  }
   const room = await ctx.db.get("rooms", stay.roomId);
   if (room && room.currentStayId === stay._id) {
     await ctx.db.patch("rooms", room._id, { currentStayId: undefined });
@@ -75,6 +84,7 @@ export const checkIn = mutation({
       expectedCheckOutAt,
       pmsRef: cleanOptionalText(args.pmsRef, "PMS reference", 64),
       note: cleanOptionalText(args.note, "Note", 500),
+      ...newStayCredentials(),
     });
     await ctx.db.patch("rooms", room._id, { currentStayId: stayId });
     return stayId;
@@ -105,13 +115,27 @@ export const extend = mutation({
   },
 });
 
+/** New PIN for a stay; phones that unlocked with the old one must unlock again. */
+export const resetPin = mutation({
+  args: { stayId: v.id("stays") },
+  returns: v.string(),
+  handler: async (ctx, { stayId }) => {
+    const stay = await loadStayAsDesk(ctx, stayId);
+    if (stay.status !== "active") fail("INVALID", "This stay has ended");
+    const creds = newStayCredentials();
+    await ctx.db.patch("stays", stay._id, creds);
+    return creds.guestPin;
+  },
+});
+
 export const listActive = query({
   args: { hotelId: v.id("hotels") },
   returns: v.array(
     schema.doc("stays").extend({ roomNumber: v.optional(v.string()), openTasks: v.number() }),
   ),
   handler: async (ctx, { hotelId }) => {
-    await requireMember(ctx, hotelId);
+    // Guest details are for the front desk, not every staff member.
+    await requireRole(ctx, hotelId, ["manager", "reception"]);
     const stays = await ctx.db
       .query("stays")
       .withIndex("by_hotelId_and_status", (q) => q.eq("hotelId", hotelId).eq("status", "active"))
@@ -123,7 +147,7 @@ export const listActive = query({
     const out = [];
     for (const s of stays) {
       const room = await ctx.db.get("rooms", s.roomId);
-      out.push({ ...s, roomNumber: room?.number, openTasks: openByStay.get(s._id) ?? 0 });
+      out.push({ ...s, guestKey: undefined, roomNumber: room?.number, openTasks: openByStay.get(s._id) ?? 0 });
     }
     return out.sort((a, b) =>
       (a.roomNumber ?? "").localeCompare(b.roomNumber ?? "", "en", { numeric: true }),
@@ -147,7 +171,7 @@ export const get = query({
   handler: async (ctx, { stayId }) => {
     const stay = await ctx.db.get("stays", stayId);
     if (stay === null) return null;
-    const { membership } = await requireMember(ctx, stay.hotelId);
+    const { membership } = await requireRole(ctx, stay.hotelId, ["manager", "reception"]);
     const room = await ctx.db.get("rooms", stay.roomId);
     const tasks = await ctx.db
       .query("tasks")
@@ -157,7 +181,7 @@ export const get = query({
     const enrich = makeEnricher(ctx);
     const visible = tasks.filter((t) => canSeeDepartment(membership, t.departmentId));
     return {
-      stay,
+      stay: { ...stay, guestKey: undefined },
       room: room ? { _id: room._id, number: room.number, floor: room.floor } : null,
       tasks: await Promise.all(visible.map(enrich)),
     };

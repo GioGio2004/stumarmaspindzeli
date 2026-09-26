@@ -76,7 +76,8 @@ export const create = mutation({
       .withIndex("by_email", (q) => q.eq("email", email))
       .first();
     if (existingUser !== null) {
-      await grantMembership(ctx, args.hotelId, existingUser._id, args.role, departmentIds);
+      const result = await grantMembership(ctx, args.hotelId, existingUser._id, args.role, departmentIds);
+      if (result === "exists") fail("ALREADY_MEMBER", "This person is already on the team. Change their role in Members.");
       return await ctx.db.insert("invitations", {
         hotelId: args.hotelId,
         email,

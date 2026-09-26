@@ -17,6 +17,10 @@ type PushTarget = {
 };
 
 async function sendAll(ctx: ActionCtx, subs: Sub[], payload: string): Promise<SendResult> {
+  if (!env.VAPID_SUBJECT || !env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) {
+    console.warn("Push skipped: VAPID keys are not configured");
+    return { sent: 0, failed: 0 };
+  }
   webpush.setVapidDetails(env.VAPID_SUBJECT, env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY);
   let sent = 0;
   let failed = 0;

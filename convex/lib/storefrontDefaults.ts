@@ -11,7 +11,17 @@ export type StorefrontSettings = {
   footerNote?: string;
 };
 
+// Neutral copy for any new hotel; managers change it in the Guest app builder.
 export const DEFAULT_SETTINGS: StorefrontSettings = {
+  heroEyebrow: "Welcome!",
+  heroTitle: "Everything for your stay,",
+  heroHighlight: "one tap",
+  heroTitleEnd: "away",
+  heroSubtitle: "Ask for anything you need, see what's on today, or chat with us in your language.",
+};
+
+// The pilot hotel's own copy, applied by seed.gino.
+export const GINO_SETTINGS: StorefrontSettings = {
   heroEyebrow: "Welcome to Gino Seaside!",
   heroTitle: "Everything for your stay,",
   heroHighlight: "one tap",

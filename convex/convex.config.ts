@@ -7,10 +7,11 @@ import { v } from "convex/values";
 const app = defineApp({
   env: {
     CLERK_JWT_ISSUER_DOMAIN: v.string(),
-    CLERK_WEBHOOK_SECRET: v.string(),
-    VAPID_PUBLIC_KEY: v.string(),
-    VAPID_PRIVATE_KEY: v.string(),
-    VAPID_SUBJECT: v.string(), // "mailto:you@example.com"
+    // Optional so a fresh deployment works before these are configured.
+    CLERK_WEBHOOK_SECRET: v.optional(v.string()),
+    VAPID_PUBLIC_KEY: v.optional(v.string()),
+    VAPID_PRIVATE_KEY: v.optional(v.string()),
+    VAPID_SUBJECT: v.optional(v.string()), // "mailto:you@example.com"
     GEMINI_API_KEY: v.optional(v.string()),
     // Comma-separated Clerk user ids with authority over every hotel.
     SUPERVISOR_CLERK_IDS: v.optional(v.string()),

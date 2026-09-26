@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalMutation, internalQuery, mutation, query, type QueryCtx } from "./_generated/server";
-import { requireUser } from "./users";
+import { fail } from "./lib/access";
+import { getCurrentUser, requireUser } from "./users";
 
 /** Called by the staff PWA after `pushManager.subscribe()`. */
 export const subscribe = mutation({
@@ -14,6 +15,15 @@ export const subscribe = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
+    if (
+      !args.endpoint.startsWith("https://") ||
+      args.endpoint.length > 1000 ||
+      args.p256dh.length > 200 ||
+      args.auth.length > 200 ||
+      (args.userAgent?.length ?? 0) > 400
+    ) {
+      fail("INVALID", "Invalid push subscription");
+    }
     if (!args.endpoint.startsWith("https://") || args.endpoint.length > 1000) {
       throw new Error("Invalid push endpoint");
     }
@@ -53,7 +63,8 @@ export const isSubscribed = query({
   args: { endpoint: v.string() },
   returns: v.boolean(),
   handler: async (ctx, { endpoint }) => {
-    const user = await requireUser(ctx);
+    const user = await getCurrentUser(ctx);
+    if (user === null) return false;
     const existing = await ctx.db
       .query("pushSubscriptions")
       .withIndex("by_endpoint", (q) => q.eq("endpoint", endpoint))

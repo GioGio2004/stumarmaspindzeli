@@ -57,12 +57,20 @@ export const retention = internalMutation({
         .query("tasks")
         .withIndex("by_stayId", (q) => q.eq("stayId", stay._id))
         .take(200);
+      // Keep the anonymous numbers, drop anything that could identify the guest.
       for (const t of tasks) {
-        if (t.guestNote !== undefined) {
-          await ctx.db.patch("tasks", t._id, { guestNote: undefined });
+        if (t.guestNote !== undefined || t.detail !== undefined) {
+          await ctx.db.patch("tasks", t._id, { guestNote: undefined, detail: t.source === "guest" ? undefined : t.detail });
         }
       }
-      await ctx.db.patch("stays", stay._id, { purgedAt: now });
+      await ctx.db.patch("stays", stay._id, {
+        purgedAt: now,
+        guestLabel: undefined,
+        note: undefined,
+        pmsRef: undefined,
+        guestPin: undefined,
+        guestKey: undefined,
+      });
     }
 
     if (events.length === 500 || stays.length === 20) {

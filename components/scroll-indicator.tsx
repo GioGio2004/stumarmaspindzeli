@@ -45,6 +45,8 @@ export function ScrollIndicator() {
     };
     const onScroll = () => {
       schedule();
+      // A panel locks the page: no indicator behind it.
+      if (doc.style.overflow === "hidden") return;
       setActive(true);
       window.clearTimeout(hideTimer.current);
       hideTimer.current = window.setTimeout(() => setActive(false), HIDE_AFTER_MS);
@@ -107,8 +109,9 @@ export function ScrollIndicator() {
       aria-hidden="true"
       onPointerDown={jump}
       className={cn(
-        "group fixed bottom-3 right-0.5 top-3 z-[70] w-4 transition-opacity duration-300 [@media(pointer:coarse)]:pointer-events-none",
-        !scrollable && "hidden",
+        "group fixed bottom-3 right-0.5 top-3 z-[45] w-4 transition-opacity duration-300 [@media(pointer:coarse)]:pointer-events-none",
+        // invisible (not display:none) so it can be measured before the first scroll
+        !scrollable && "pointer-events-none invisible",
         active || dragging ? "opacity-100" : "opacity-0 hover:opacity-100",
       )}
     >
@@ -118,6 +121,7 @@ export function ScrollIndicator() {
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onLostPointerCapture={endDrag}
         style={{ touchAction: "none" }}
         className={cn(
           "absolute right-1 top-0 rounded-full transition-[width,background-color,box-shadow] duration-200",

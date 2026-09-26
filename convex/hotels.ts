@@ -2,19 +2,20 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import {
+  getMember,
   cleanOptionalText,
   cleanText,
   fail,
   randomJoinCode,
-  requireMember,
   requireRole,
   slugify,
 } from "./lib/access";
 import { ensureDefaultDepartments } from "./lib/defaults";
-import { isSupervisor } from "./lib/supervisor";
+import { rateLimiter } from "./lib/rateLimits";
+import { addSupervisorsToHotel, isSupervisor } from "./lib/supervisor";
 import { DEFAULT_TIMEZONE, isValidTimeZone } from "./lib/stats";
 import schema, { roleValidator } from "./schema";
-import { requireUser } from "./users";
+import { getCurrentUser, requireUser } from "./users";
 
 const LANG_RE = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -31,6 +32,8 @@ export const create = mutation({
   returns: v.id("hotels"),
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
+    const limit = await rateLimiter.limit(ctx, "createHotel", { key: user._id });
+    if (!limit.ok) fail("RATE_LIMITED", "Too many hotels created. Try again later.");
     const name = cleanText(args.name, "Name", 80);
     const hotelId = await ctx.db.insert("hotels", {
       name,
@@ -50,6 +53,7 @@ export const create = mutation({
       completedTaskCount: 0,
       departmentIds: Object.values(depts),
     });
+    await addSupervisorsToHotel(ctx, hotelId);
     return hotelId;
   },
 });
@@ -68,7 +72,9 @@ export const mine = query({
     }),
   ),
   handler: async (ctx) => {
-    const user = await requireUser(ctx);
+    // A brand-new user has no row until users.store runs: that is "no hotels", not an error.
+    const user = await getCurrentUser(ctx);
+    if (user === null) return [];
     const supervisor = isSupervisor(user);
     const memberships = await ctx.db
       .query("memberships")
@@ -96,7 +102,7 @@ export const get = query({
   args: { hotelId: v.id("hotels") },
   returns: v.union(schema.doc("hotels"), v.null()),
   handler: async (ctx, { hotelId }) => {
-    await requireMember(ctx, hotelId);
+    if ((await getMember(ctx, hotelId)) === null) return null;
     return await ctx.db.get("hotels", hotelId);
   },
 });
@@ -115,6 +121,7 @@ export const update = mutation({
     defaultLanguage: v.optional(v.string()),
     guestLanguages: v.optional(v.array(v.string())),
     timezone: v.optional(v.string()),
+    requireGuestPin: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, { hotelId, ...a }) => {
@@ -145,6 +152,7 @@ export const update = mutation({
       if (!isValidTimeZone(a.timezone)) fail("INVALID", "Unknown timezone");
       patch.timezone = a.timezone;
     }
+    if (a.requireGuestPin !== undefined) patch.requireGuestPin = a.requireGuestPin;
     await ctx.db.patch("hotels", hotelId, patch);
     return null;
   },
@@ -156,6 +164,8 @@ export const join = mutation({
   returns: v.id("hotels"),
   handler: async (ctx, { joinCode }) => {
     const user = await requireUser(ctx);
+    const limit = await rateLimiter.limit(ctx, "joinHotel", { key: user._id });
+    if (!limit.ok) fail("RATE_LIMITED", "Too many attempts. Try again later.");
     const code = joinCode.trim().toUpperCase();
     if (code.length === 0 || code.length > 12) fail("INVALID", "Invalid join code");
     const hotel = await ctx.db

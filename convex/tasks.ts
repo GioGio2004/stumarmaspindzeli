@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import {
+  getMember,
   canSeeDepartment,
   canWorkDepartment,
   checkInt,
@@ -193,7 +194,8 @@ export const myQueue = query({
 });
 
 export const get = query({
-  args: { taskId: v.id("tasks") },
+  // A string, not v.id, so an old or mistyped link returns null instead of throwing.
+  args: { taskId: v.string() },
   returns: v.union(
     taskSummaryValidator.extend({
       stay: v.union(
@@ -210,12 +212,16 @@ export const get = query({
     }),
     v.null(),
   ),
-  handler: async (ctx, { taskId }) => {
+  handler: async (ctx, { taskId: raw }) => {
+    const taskId = ctx.db.normalizeId("tasks", raw);
+    if (taskId === null) return null;
     const task = await ctx.db.get("tasks", taskId);
     if (task === null) return null;
-    const { user, membership } = await requireMember(ctx, task.hotelId);
+    const member = await getMember(ctx, task.hotelId);
+    if (member === null) return null;
+    const { user, membership } = member;
     if (!canSeeDepartment(membership, task.departmentId) && task.assigneeUserId !== user._id) {
-      fail("FORBIDDEN", "Not your department");
+      return null;
     }
     const summary = await makeEnricher(ctx)(task);
     const stay = task.stayId ? await ctx.db.get("stays", task.stayId) : null;
@@ -307,12 +313,15 @@ export const accept = mutation({
       status: "accepted",
       assigneeUserId: user._id,
       acceptedAt: now,
+      firstAcceptedAt: task.firstAcceptedAt ?? now,
     });
-    const hotel = await hotelOf(ctx, task.hotelId);
-    await recordStats(ctx, hotel, now, {
-      responseMs: now - task._creationTime,
-      departmentId: task.departmentId,
-    });
+    if (task.firstAcceptedAt === undefined && task.source === "guest") {
+      const hotel = await hotelOf(ctx, task.hotelId);
+      await recordStats(ctx, hotel, now, {
+        responseMs: now - task._creationTime,
+        departmentId: task.departmentId,
+      });
+    }
     return null;
   },
 });
@@ -374,15 +383,20 @@ export const complete = mutation({
       }
       patch.assigneeUserId = member.user._id;
       patch.acceptedAt = now;
-      await recordStats(ctx, hotel, now, {
-        responseMs: now - task._creationTime,
-        departmentId: task.departmentId,
-      });
+      patch.firstAcceptedAt = task.firstAcceptedAt ?? now;
+      if (task.firstAcceptedAt === undefined && task.source === "guest") {
+        await recordStats(ctx, hotel, now, {
+          responseMs: now - task._creationTime,
+          departmentId: task.departmentId,
+        });
+      }
     } else if (!isAssigneeOrManager(task, member)) {
       fail("FORBIDDEN", "Only the assignee can complete");
     }
     await ctx.db.patch("tasks", taskId, patch);
-    await recordStats(ctx, hotel, now, { done: 1, completionMs: now - task._creationTime });
+    if (task.source === "guest") {
+      await recordStats(ctx, hotel, now, { done: 1, completionMs: now - task._creationTime });
+    }
 
     const assigneeId = patch.assigneeUserId ?? task.assigneeUserId;
     if (assigneeId) {
@@ -460,12 +474,15 @@ export const assign = mutation({
         status: "accepted",
         assigneeUserId: userId,
         acceptedAt: now,
+        firstAcceptedAt: task.firstAcceptedAt ?? now,
       });
-      const hotel = await hotelOf(ctx, task.hotelId);
-      await recordStats(ctx, hotel, now, {
-        responseMs: now - task._creationTime,
-        departmentId: task.departmentId,
-      });
+      if (task.firstAcceptedAt === undefined && task.source === "guest") {
+        const hotel = await hotelOf(ctx, task.hotelId);
+        await recordStats(ctx, hotel, now, {
+          responseMs: now - task._creationTime,
+          departmentId: task.departmentId,
+        });
+      }
     } else {
       await ctx.db.patch("tasks", taskId, { assigneeUserId: userId });
     }

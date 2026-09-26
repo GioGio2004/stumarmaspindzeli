@@ -29,11 +29,12 @@ export function sortCatalog<T extends Pick<Doc<"catalogItems">, "section" | "sor
 }
 
 export async function catalogForHotel(ctx: QueryCtx, hotelId: Id<"hotels">) {
+  // Archived items never count toward the cap.
   const rows = await ctx.db
     .query("catalogItems")
-    .withIndex("by_hotelId", (q) => q.eq("hotelId", hotelId))
-    .take(300);
-  return sortCatalog(rows.filter((i) => !i.archived));
+    .withIndex("by_hotelId_and_archived", (q) => q.eq("hotelId", hotelId).eq("archived", false))
+    .take(500);
+  return sortCatalog(rows);
 }
 
 async function loadItemAsManager(ctx: MutationCtx, itemId: Id<"catalogItems">) {

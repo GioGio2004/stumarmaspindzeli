@@ -129,8 +129,9 @@ const schema = defineSchema({
   users: defineTable({
     externalId: v.string(), // Clerk user id
     name: v.string(),
-    email: v.optional(v.string()),
+    email: v.optional(v.string()), // verified by Clerk only; never taken from the client
     imageUrl: v.optional(v.string()),
+    profileSyncedAt: v.optional(v.number()), // set once the verified email was read from Clerk
   })
     .index("by_externalId", ["externalId"])
     .index("by_email", ["email"]),
@@ -168,6 +169,7 @@ const schema = defineSchema({
     guestLanguages: v.optional(v.array(v.string())), // max 8
     brandName: v.optional(v.string()),
     collection: v.optional(v.string()), // "Trademark Collection by Wyndham"
+    requireGuestPin: v.optional(v.boolean()), // default on: guests confirm with the stay PIN
   })
     .index("by_slug", ["slug"])
     .index("by_joinCode", ["joinCode"])
@@ -225,6 +227,10 @@ const schema = defineSchema({
     pmsRef: v.optional(v.string()),
     note: v.optional(v.string()),
     purgedAt: v.optional(v.number()), // retention job cleared guest notes
+    // Guests unlock requests with this 4-digit PIN (told by reception); the
+    // unlock returns guestKey, a long random secret the phone then sends.
+    guestPin: v.optional(v.string()),
+    guestKey: v.optional(v.string()),
   })
     .index("by_roomId_and_status", ["roomId", "status"])
     .index("by_hotelId_and_status", ["hotelId", "status"])
@@ -254,7 +260,8 @@ const schema = defineSchema({
     archived: v.boolean(),
   })
     .index("by_hotelId", ["hotelId"])
-    .index("by_hotelId_and_key", ["hotelId", "key"]),
+    .index("by_hotelId_and_key", ["hotelId", "key"])
+    .index("by_hotelId_and_archived", ["hotelId", "archived"]),
 
   // A live task in the queue. Steps are copied at creation.
   tasks: defineTable({
@@ -273,6 +280,7 @@ const schema = defineSchema({
     createdByUserId: v.optional(v.id("users")),
     assigneeUserId: v.optional(v.id("users")),
     acceptedAt: v.optional(v.number()),
+    firstAcceptedAt: v.optional(v.number()), // kept on release; response time is counted once
     startedAt: v.optional(v.number()),
     doneAt: v.optional(v.number()),
     cancelledAt: v.optional(v.number()),

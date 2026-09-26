@@ -2,7 +2,8 @@ import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
 import { randomJoinCode, randomToken } from "./lib/access";
 import { ensureDefaultDepartments, seedCatalogDefaults } from "./lib/defaults";
-import { seedStorefrontDefaults } from "./lib/storefrontDefaults";
+import { GINO_SETTINGS, seedStorefrontDefaults } from "./lib/storefrontDefaults";
+import { newStayCredentials } from "./lib/access";
 
 const GINO_SLUG = "gino-seaside";
 const LEGACY_SLUG = "gino-seaside-tbilisi";
@@ -23,11 +24,16 @@ export const gino = internalMutation({
     demoStayId: v.id("stays"),
   }),
   handler: async (ctx, { ownerExternalId }) => {
-    const owner = await ctx.db
+    // On a fresh deployment the owner may not have signed in yet: create the
+    // row; their first sign-in fills in the name and the verified email.
+    let owner = await ctx.db
       .query("users")
       .withIndex("by_externalId", (q) => q.eq("externalId", ownerExternalId))
       .unique();
-    if (owner === null) throw new Error(`No user with externalId ${ownerExternalId}`);
+    if (owner === null) {
+      const ownerId = await ctx.db.insert("users", { externalId: ownerExternalId, name: "Unnamed" });
+      owner = (await ctx.db.get("users", ownerId))!;
+    }
 
     const hotelFields = {
       name: "Gino Seaside Tbilisi",
@@ -87,6 +93,13 @@ export const gino = internalMutation({
 
     const baseItems = await seedCatalogDefaults(ctx, hotelId);
     const storefront = await seedStorefrontDefaults(ctx, hotelId);
+    if (storefront.settingsCreated) {
+      const doc = await ctx.db
+        .query("storefronts")
+        .withIndex("by_hotelId", (q) => q.eq("hotelId", hotelId))
+        .first();
+      if (doc) await ctx.db.patch("storefronts", doc._id, GINO_SETTINGS);
+    }
     const itemsInserted = baseItems + storefront.itemsInserted;
 
     const membership = await ctx.db
@@ -130,8 +143,11 @@ export const gino = internalMutation({
         adults: 2,
         checkInAt: now,
         expectedCheckOutAt: now + 3 * 24 * 60 * 60 * 1000,
+        ...newStayCredentials(),
       });
       stay = (await ctx.db.get("stays", stayId))!;
+    } else if (stay.guestPin === undefined) {
+      await ctx.db.patch("stays", stay._id, newStayCredentials());
     }
     if (room214.currentStayId !== stay._id) {
       await ctx.db.patch("rooms", room214._id, { currentStayId: stay._id });

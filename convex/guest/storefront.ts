@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import { query, type QueryCtx } from "../_generated/server";
-import { guestContext } from "../lib/access";
+import { guestContext, stayNeedsKey } from "../lib/access";
+import { DEFAULT_TIMEZONE } from "../lib/stats";
 import {
   guestEvents,
   guestEventValidator,
@@ -22,6 +23,7 @@ const payloadValidator = v.object({
     checkoutTime: v.optional(v.string()),
     slug: v.string(),
     guestLanguages: v.optional(v.array(v.string())),
+    timezone: v.string(),
   }),
   settings: v.object(storefrontSettingsFields),
   tiles: v.array(guestTileValidator),
@@ -33,6 +35,7 @@ const payloadValidator = v.object({
       checkInAt: v.number(),
       expectedCheckOutAt: v.number(),
       language: v.optional(v.string()),
+      pinRequired: v.boolean(),
     }),
     v.null(),
   ),
@@ -50,6 +53,7 @@ async function basePayload(ctx: QueryCtx, hotel: Doc<"hotels">) {
       checkoutTime: hotel.checkoutTime,
       slug: hotel.slug,
       guestLanguages: hotel.guestLanguages,
+      timezone: hotel.timezone ?? DEFAULT_TIMEZONE,
     },
     settings,
     tiles: await guestTiles(ctx, hotel._id),
@@ -74,6 +78,7 @@ export const byToken = query({
             checkInAt: stay.checkInAt,
             expectedCheckOutAt: stay.expectedCheckOutAt,
             language: stay.language,
+            pinRequired: stayNeedsKey(hotel, stay),
           }
         : null,
       wifi:

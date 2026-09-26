@@ -14,7 +14,10 @@ http.route({
   path: "/clerk-users-webhook",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const event = await validateRequest(request);
+    if (!env.CLERK_WEBHOOK_SECRET) {
+      return new Response("Webhook not configured", { status: 503 });
+    }
+    const event = await validateRequest(request, env.CLERK_WEBHOOK_SECRET);
     if (event === null) {
       return new Response("Invalid webhook signature", { status: 400 });
     }
@@ -43,14 +46,14 @@ http.route({
   }),
 });
 
-async function validateRequest(req: Request): Promise<WebhookEvent | null> {
+async function validateRequest(req: Request, secret: string): Promise<WebhookEvent | null> {
   const svixId = req.headers.get("svix-id");
   const svixTimestamp = req.headers.get("svix-timestamp");
   const svixSignature = req.headers.get("svix-signature");
   if (!svixId || !svixTimestamp || !svixSignature) return null;
 
   const payload = await req.text();
-  const wh = new Webhook(env.CLERK_WEBHOOK_SECRET);
+  const wh = new Webhook(secret);
   try {
     // svix 2.x: verify() throws on a bad signature and returns nothing.
     wh.verify(payload, {

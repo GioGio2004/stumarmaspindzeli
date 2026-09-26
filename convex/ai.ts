@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { rateLimiter } from "./lib/rateLimits";
 import { internal } from "./_generated/api";
 import { action, env } from "./_generated/server";
 
@@ -19,10 +20,14 @@ export const draftSteps = action({
   },
   returns: v.array(v.string()),
   handler: async (ctx, { hotelId, title, roughText, language }) => {
-    // Throws unless the caller is a member of the hotel.
-    await ctx.runQuery(internal.members.assertMember, { hotelId });
+    // Managers only, and rate-limited per hotel, because every call costs money.
+    await ctx.runQuery(internal.members.assertManager, { hotelId });
     if (!env.GEMINI_API_KEY) return [];
-    if (title.length > 200 || roughText.length > 4000) throw new Error("Input too long");
+    if (title.length > 200 || roughText.length > 4000) {
+      throw new ConvexError({ code: "INVALID", message: "Input too long" });
+    }
+    const limit = await rateLimiter.limit(ctx, "aiDraft", { key: hotelId });
+    if (!limit.ok) throw new ConvexError({ code: "RATE_LIMITED", message: "Too many drafts. Try again later." });
 
     const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
     const lang = language && /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(language) ? language : "ka";

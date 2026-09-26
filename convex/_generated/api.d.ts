@@ -15,6 +15,7 @@ import type * as departments from "../departments.js";
 import type * as escalation from "../escalation.js";
 import type * as guest_catalog from "../guest/catalog.js";
 import type * as guest_events from "../guest/events.js";
+import type * as guest_pin from "../guest/pin.js";
 import type * as guest_requests from "../guest/requests.js";
 import type * as guest_session from "../guest/session.js";
 import type * as guest_storefront from "../guest/storefront.js";
@@ -59,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   escalation: typeof escalation;
   "guest/catalog": typeof guest_catalog;
   "guest/events": typeof guest_events;
+  "guest/pin": typeof guest_pin;
   "guest/requests": typeof guest_requests;
   "guest/session": typeof guest_session;
   "guest/storefront": typeof guest_storefront;

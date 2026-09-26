@@ -30,10 +30,10 @@ const rank = (s: string) => {
 export async function guestItems(ctx: QueryCtx, hotelId: Id<"hotels">) {
   const rows = await ctx.db
     .query("catalogItems")
-    .withIndex("by_hotelId", (q) => q.eq("hotelId", hotelId))
-    .take(300);
+    .withIndex("by_hotelId_and_archived", (q) => q.eq("hotelId", hotelId).eq("archived", false))
+    .take(500);
   const items = rows
-    .filter((i) => i.visible && !i.archived && i.kind !== "internal")
+    .filter((i) => i.visible && i.kind !== "internal")
     .sort((a, b) => rank(a.section) - rank(b.section) || a.sortOrder - b.sortOrder);
   const names = new Map<Id<"departments">, string | undefined>();
   const out = [];

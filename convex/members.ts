@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalQuery, mutation, query, type MutationCtx } from "./_generated/server";
-import { fail, requireMember, requireRole } from "./lib/access";
+import { fail, getMember, requireMember, requireRole } from "./lib/access";
 import { isSupervisor } from "./lib/supervisor";
 import { roleValidator } from "./schema";
 
@@ -52,10 +52,10 @@ export const list = query({
 /** The caller's own membership in the hotel. */
 export const me = query({
   args: { hotelId: v.id("hotels") },
-  returns: memberValidator,
+  returns: v.union(memberValidator, v.null()),
   handler: async (ctx, { hotelId }) => {
-    const { user, membership } = await requireMember(ctx, hotelId);
-    return toMember(membership, user);
+    const member = await getMember(ctx, hotelId);
+    return member === null ? null : toMember(member.membership, member.user);
   },
 });
 
@@ -65,13 +65,34 @@ async function assertNotSupervisor(ctx: MutationCtx, target: Doc<"memberships">)
   if (user !== null && isSupervisor(user)) fail("FORBIDDEN", "The supervisor's access can't be changed");
 }
 
+/** A hotel must keep one real manager besides the platform supervisor. */
 async function assertNotLastManager(ctx: MutationCtx, target: Doc<"memberships">) {
   if (target.role !== "manager") return;
   const managers = await ctx.db
     .query("memberships")
     .withIndex("by_hotelId_and_role", (q) => q.eq("hotelId", target.hotelId).eq("role", "manager"))
-    .take(2);
-  if (managers.length < 2) fail("LAST_MANAGER", "A hotel needs at least one manager");
+    .take(50);
+  let others = 0;
+  for (const m of managers) {
+    if (m._id === target._id) continue;
+    const user = await ctx.db.get("users", m.userId);
+    if (user !== null && !isSupervisor(user)) others++;
+  }
+  if (others === 0) fail("LAST_MANAGER", "A hotel needs at least one manager");
+}
+
+/** Hand the person's unfinished tasks in this hotel back to their teams. */
+async function releaseTasks(ctx: MutationCtx, target: Doc<"memberships">) {
+  for (const status of ["accepted", "in_progress"] as const) {
+    const tasks = await ctx.db
+      .query("tasks")
+      .withIndex("by_assigneeUserId_and_status", (q) => q.eq("assigneeUserId", target.userId).eq("status", status))
+      .take(200);
+    for (const t of tasks) {
+      if (t.hotelId !== target.hotelId) continue;
+      await ctx.db.patch("tasks", t._id, { status: "open", assigneeUserId: undefined, acceptedAt: undefined, startedAt: undefined });
+    }
+  }
 }
 
 async function cleanDepartmentIds(
@@ -122,6 +143,7 @@ export const remove = mutation({
     await requireRole(ctx, target.hotelId, ["manager"]);
     await assertNotSupervisor(ctx, target);
     await assertNotLastManager(ctx, target);
+    await releaseTasks(ctx, target);
     await ctx.db.delete("memberships", membershipId);
     return null;
   },
@@ -138,6 +160,16 @@ export const setOnShift = mutation({
 });
 
 // ---- internal ---------------------------------------------------------------
+
+/** Throws unless the caller manages the hotel. Used by actions. */
+export const assertManager = internalQuery({
+  args: { hotelId: v.id("hotels") },
+  returns: v.null(),
+  handler: async (ctx, { hotelId }) => {
+    await requireRole(ctx, hotelId, ["manager"]);
+    return null;
+  },
+});
 
 /** Throws unless the caller is a member of the hotel. Used by actions. */
 export const assertMember = internalQuery({

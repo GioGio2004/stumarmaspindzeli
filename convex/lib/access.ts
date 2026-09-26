@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { requireUser } from "../users";
+import { getCurrentUser, requireUser } from "../users";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -15,6 +15,17 @@ export type Member = {
 /** Throw a structured error the client can read via `error.data`. */
 export function fail(code: string, message: string): never {
   throw new ConvexError({ code, message });
+}
+
+/** The caller's membership in the hotel, or null (for queries that should not throw). */
+export async function getMember(ctx: Ctx, hotelId: Id<"hotels">): Promise<Member | null> {
+  const user = await getCurrentUser(ctx);
+  if (user === null) return null;
+  const membership = await ctx.db
+    .query("memberships")
+    .withIndex("by_hotelId_and_userId", (q) => q.eq("hotelId", hotelId).eq("userId", user._id))
+    .unique();
+  return membership === null ? null : { user, membership };
 }
 
 /** Signed-in user who belongs to the hotel (any role). */
@@ -81,6 +92,18 @@ export async function guestContext(
     if (s !== null && s.status === "active" && s.roomId === room._id) stay = s;
   }
   return { hotel, room, stay };
+}
+
+/** A new stay PIN (4 digits) and the long key the guest's phone receives after unlocking. */
+export function newStayCredentials(): { guestPin: string; guestKey: string } {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return { guestPin: String(buf[0] % 10000).padStart(4, "0"), guestKey: randomToken(24) };
+}
+
+/** Does this stay require the guest's key for requests? (Hotel setting, default on.) */
+export function stayNeedsKey(hotel: Doc<"hotels">, stay: Doc<"stays">): boolean {
+  return hotel.requireGuestPin !== false && stay.guestKey !== undefined;
 }
 
 /** URL-safe random token, used for room NFC/QR links. */

@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { mutation, query, type MutationCtx } from "../_generated/server";
-import { cleanOptionalText, fail, guestContext } from "../lib/access";
+import { cleanOptionalText, fail, guestContext, stayNeedsKey } from "../lib/access";
 import { rateLimiter } from "../lib/rateLimits";
 import { itemStatKey } from "../lib/stats";
 import { insertTask, MAX_STEPS, openTaskCountForStay } from "../lib/tasks";
@@ -10,11 +10,17 @@ import { taskStatusValidator } from "../schema";
 const MAX_OPEN_PER_STAY = 10;
 const DEFAULT_MAX_QUANTITY = 9;
 
-/** Resolve the token to an active stay or throw a guest-readable error. */
-async function requireStay(ctx: MutationCtx, token: string) {
+/**
+ * Resolve the token to an active stay or throw a guest-readable error. When
+ * the hotel uses PINs, the phone must also send the stay's key (see guest/pin).
+ */
+async function requireStay(ctx: MutationCtx, token: string, key: string | undefined) {
   const g = await guestContext(ctx, token);
   if (g === null) fail("INVALID_TOKEN", "This room link is not valid");
   if (g.stay === null) fail("NO_STAY", "Requests are available during your stay");
+  if (stayNeedsKey(g.hotel, g.stay) && key !== g.stay.guestKey) {
+    fail("PIN_REQUIRED", "Enter your room PIN from reception to continue");
+  }
   return { hotel: g.hotel, room: g.room, stay: g.stay };
 }
 
@@ -86,6 +92,7 @@ function formatGel(n: number): string {
 export const create = mutation({
   args: {
     token: v.string(),
+    key: v.optional(v.string()),
     itemId: v.optional(v.id("catalogItems")), // preferred
     itemKey: v.optional(v.string()),
     quantity: v.optional(v.number()),
@@ -94,7 +101,7 @@ export const create = mutation({
   },
   returns: v.id("tasks"),
   handler: async (ctx, args) => {
-    const { hotel, room, stay } = await requireStay(ctx, args.token);
+    const { hotel, room, stay } = await requireStay(ctx, args.token, args.key);
     const { item, department } = await requestableItem(ctx, hotel._id, args);
     const quantity = item.allowQuantity ? clampQuantity(item, args.quantity) : undefined;
     const guestNote = item.allowNote ? cleanOptionalText(args.note, "Note", 300) : undefined;
@@ -132,6 +139,7 @@ export const create = mutation({
 export const createOrder = mutation({
   args: {
     token: v.string(),
+    key: v.optional(v.string()),
     lines: v.array(
       v.object({
         itemId: v.optional(v.id("catalogItems")), // preferred
@@ -143,7 +151,7 @@ export const createOrder = mutation({
   },
   returns: v.id("tasks"),
   handler: async (ctx, args) => {
-    const { hotel, room, stay } = await requireStay(ctx, args.token);
+    const { hotel, room, stay } = await requireStay(ctx, args.token, args.key);
     if (args.lines.length < 1 || args.lines.length > 20) {
       fail("INVALID", "An order has 1 to 20 lines");
     }
@@ -202,7 +210,7 @@ export const createOrder = mutation({
 
 /** The current stay's requests, newest first. Empty without an active stay. */
 export const list = query({
-  args: { token: v.string() },
+  args: { token: v.string(), key: v.optional(v.string()) },
   returns: v.array(
     v.object({
       id: v.id("tasks"),
@@ -218,9 +226,10 @@ export const list = query({
       price: v.optional(v.number()),
     }),
   ),
-  handler: async (ctx, { token }) => {
+  handler: async (ctx, { token, key }) => {
     const g = await guestContext(ctx, token);
     if (g === null || g.stay === null) return [];
+    if (stayNeedsKey(g.hotel, g.stay) && key !== g.stay.guestKey) return [];
     const stayId = g.stay._id;
     const tasks = await ctx.db
       .query("tasks")
@@ -250,10 +259,10 @@ export const list = query({
 });
 
 export const rate = mutation({
-  args: { token: v.string(), taskId: v.id("tasks"), rating: v.number() },
+  args: { token: v.string(), key: v.optional(v.string()), taskId: v.id("tasks"), rating: v.number() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const { hotel, room, stay } = await requireStay(ctx, args.token);
+    const { hotel, room, stay } = await requireStay(ctx, args.token, args.key);
     if (!Number.isInteger(args.rating) || args.rating < 1 || args.rating > 5) {
       fail("INVALID", "Rating must be 1-5");
     }
@@ -276,10 +285,12 @@ export const rate = mutation({
 });
 
 export const cancel = mutation({
-  args: { token: v.string(), taskId: v.id("tasks") },
+  args: { token: v.string(), key: v.optional(v.string()), taskId: v.id("tasks") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const { stay } = await requireStay(ctx, args.token);
+    const { stay } = await requireStay(ctx, args.token, args.key);
+    const limit = await rateLimiter.limit(ctx, "guestAction", { key: stay._id });
+    if (!limit.ok) fail("RATE_LIMITED", "Too many actions, please try again later");
     const task = await ctx.db.get("tasks", args.taskId);
     if (task === null || task.stayId !== stay._id) fail("NOT_FOUND", "Request not found");
     if (task.status === "cancelled") return null; // idempotent
