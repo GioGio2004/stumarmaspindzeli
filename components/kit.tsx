@@ -16,6 +16,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
+import { errorText } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { Clover, Ring, Star4 } from "./brand/glyphs";
 
@@ -477,14 +478,21 @@ export function Sheet({
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
+  // Parents pass inline callbacks. Keeping the latest in a ref means a parent
+  // re-render never re-runs the effect below (which used to steal focus mid-typing).
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const root = document.documentElement;
     const previous = root.style.overflow;
     root.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !e.isComposing) onCloseRef.current();
     };
     window.addEventListener("keydown", onKey);
     const t = window.setTimeout(() => closeRef.current?.focus({ preventScroll: true }), 30);
@@ -492,8 +500,9 @@ export function Sheet({
       root.style.overflow = previous;
       window.removeEventListener("keydown", onKey);
       window.clearTimeout(t);
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return (
     <AnimatePresence>
@@ -579,7 +588,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               layout
               className={cn(
                 "pointer-events-auto flex items-center gap-3 rounded-full py-2 pl-2 pr-5 text-[14px] shadow-2xl",
-                toast.tone === "success" ? "bg-ink text-white" : "bg-red-600 text-white",
+                toast.tone === "success" ? "bg-ink text-white" : "bg-red-600 text-[#fff]",
               )}
               initial={{ opacity: 0, y: 24, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -612,8 +621,7 @@ export function useRun() {
         if (success) toast(success);
         return result;
       } catch (error) {
-        const message = error instanceof Error ? error.message.replace(/^.*Uncaught Error: /, "").split("\n")[0] : "Something went wrong";
-        toast(message, "error");
+        toast(errorText(error), "error");
         return undefined;
       }
     },

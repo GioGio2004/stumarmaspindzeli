@@ -20,8 +20,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
 import { roleLabel, type Role } from "@/lib/status";
 import { cn } from "@/lib/utils";
@@ -151,7 +151,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <main className="px-3 pb-32 pt-2 sm:px-6 lg:pb-12 lg:pl-[124px] lg:pr-8 lg:pt-8 xl:pl-[296px]">
-        <div className="mx-auto max-w-[1240px]">{children}</div>
+        {/* keyed by hotel: switching hotels starts every page fresh, no stale forms or ids */}
+        <div key={current.hotel._id} className="mx-auto max-w-[1240px]">
+          {children}
+        </div>
       </main>
 
       {/* phone / tablet bottom bar */}
@@ -199,7 +202,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Menu" width="max-w-md">
         <div className="space-y-3 pb-2">
-          <HotelSwitcher />
+          <HotelSwitcher onPicked={() => setMenuOpen(false)} />
           {overflow.length > 0 && (
             <div className="grid grid-cols-2 gap-2">
               {overflow.map((item) => {
@@ -230,14 +233,44 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-function HotelSwitcher({ compactBelowXl = false }: { compactBelowXl?: boolean }) {
+function HotelSwitcher({ compactBelowXl = false, onPicked }: { compactBelowXl?: boolean; onPicked?: () => void }) {
   const { memberships, current, setHotelId } = useHotel();
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   if (!current) return null;
   const many = memberships.length > 1;
 
+  const pick = (m: (typeof memberships)[number]) => {
+    setOpen(false);
+    onPicked?.();
+    if (m.hotel._id === current.hotel._id) return;
+    setHotelId(m.hotel._id);
+    // Detail pages (a task id) belong to the old hotel, and the new role may not see this page.
+    const allowed = navFor(m.role as Role, Boolean(m.supervisor)).some((i) => pathname === i.href);
+    if (!allowed) router.push(homeFor(m.role as Role));
+  };
+
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
         type="button"
         disabled={!many}
@@ -280,10 +313,7 @@ function HotelSwitcher({ compactBelowXl = false }: { compactBelowXl?: boolean })
               <li key={m.hotel._id}>
                 <button
                   type="button"
-                  onClick={() => {
-                    setHotelId(m.hotel._id);
-                    setOpen(false);
-                  }}
+                  onClick={() => pick(m)}
                   className={cn(
                     "w-full rounded-2xl px-3 py-2 text-left text-[14px] transition hover:bg-panel",
                     m.hotel._id === current.hotel._id && "bg-panel font-medium",

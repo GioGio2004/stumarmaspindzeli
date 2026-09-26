@@ -33,18 +33,60 @@ export function shortDate(ms: number) {
   return new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+const DEFAULT_ZONE = "Asia/Tbilisi";
+
+function zoneOrDefault(timeZone?: string) {
+  if (!timeZone) return DEFAULT_ZONE;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return timeZone;
+  } catch {
+    return DEFAULT_ZONE;
+  }
+}
+
 /** "YYYY-MM-DD" for a moment in the hotel's time zone. */
-export function dayKey(ms: number, timeZone = "Asia/Tbilisi") {
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(ms);
+export function dayKey(ms: number, timeZone?: string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: zoneOrDefault(timeZone),
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(ms);
 }
 
-/** Midnight today in the hotel's time zone, as epoch ms (Tbilisi has no DST). */
-export function startOfHotelDay(now: number, offsetHours = 4) {
-  const shifted = now + offsetHours * 3_600_000;
-  return shifted - (shifted % 86_400_000) - offsetHours * 3_600_000;
+/** How far `timeZone` is ahead of UTC at `ms`, in ms. */
+function zoneOffset(ms: number, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(ms);
+  const get = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const wall = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
+  return wall - Math.floor(ms / 1000) * 1000;
 }
 
-export function errorText(error: unknown) {
-  if (!(error instanceof Error)) return "Something went wrong";
-  return error.message.replace(/^.*Uncaught Error: /, "").split("\n")[0];
+/** Epoch ms of a wall-clock time ("YYYY-MM-DD", "HH:MM") in the hotel's time zone. */
+export function hotelTime(day: string, hhmm: string, timeZone?: string) {
+  const zone = zoneOrDefault(timeZone);
+  const [y, m, d] = day.split("-").map(Number);
+  const [h, min] = hhmm.split(":").map(Number);
+  const guess = Date.UTC(y, m - 1, d, h || 0, min || 0);
+  const first = guess - zoneOffset(guess, zone);
+  // Re-check once so a DST change between the guess and the answer is handled.
+  const second = guess - zoneOffset(first, zone);
+  return second;
 }
+
+/** Midnight today in the hotel's time zone, as epoch ms. */
+export function startOfHotelDay(now: number, timeZone?: string) {
+  return hotelTime(dayKey(now, timeZone), "00:00", timeZone);
+}
+
+export { errorText } from "./errors";

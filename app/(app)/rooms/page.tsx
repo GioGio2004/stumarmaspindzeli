@@ -71,6 +71,13 @@ function Rooms() {
         }
       />
 
+      {!process.env.NEXT_PUBLIC_STOREFRONT_URL && (
+        <p className="mb-4 rounded-[20px] bg-red-50 px-4 py-3 text-[13px] text-red-700">
+          The guest app address isn&apos;t configured, so these links won&apos;t open it. Set NEXT_PUBLIC_STOREFRONT_URL for
+          this deployment and redeploy.
+        </p>
+      )}
+
       {rooms === undefined ? (
         <Skeleton className="h-80 bg-panel" />
       ) : rooms.length === 0 ? (
@@ -202,7 +209,7 @@ function AddRoomsSheet({ open, onClose }: { open: boolean; onClose: () => void }
           </div>
         ) : (
           <Field label="Room number">
-            <TextInput value={number} onChange={(e) => setNumber(e.target.value)} required maxLength={12} placeholder="214" />
+            <TextInput value={number} onChange={(e) => setNumber(e.target.value)} required maxLength={10} placeholder="214" />
           </Field>
         )}
         <Field label="Floor" hint="Optional">

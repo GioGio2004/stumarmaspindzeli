@@ -17,8 +17,9 @@ export default function QueuePage() {
   const { user } = useUser();
   const router = useRouter();
   const tasks = useQuery(api.tasks.myQueue, { hotelId });
+  const me = useQuery(api.users.current);
 
-  const mine = tasks?.filter((t) => t.assigneeUserId !== undefined && t.status !== "open") ?? [];
+  const mine = tasks?.filter((t) => me && t.assigneeUserId === me._id && t.status !== "open") ?? [];
   const waiting = tasks?.filter((t) => t.status === "open") ?? [];
 
   return (

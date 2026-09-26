@@ -4,10 +4,12 @@ import { useMutation } from "convex/react";
 import { ExternalLink } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useActiveHotel } from "@/components/hotel-context";
-import { ArrowButton, Card, Field, PageHeader, Select, TextInput, buttonClass, useRun } from "@/components/kit";
+import { ArrowButton, Card, Field, PageHeader, Select, TextInput, Toggle, buttonClass, useRun } from "@/components/kit";
 import { RoleGate } from "@/components/role-gate";
 import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
+
+const TIMEZONES = ["Asia/Tbilisi", "Europe/Istanbul", "Asia/Yerevan", "Asia/Baku", "Europe/Moscow", "Europe/Kyiv", "Asia/Dubai", "Europe/London", "UTC"];
 
 const GUEST_LANGUAGES = [
   { value: "en", label: "English" },
@@ -40,6 +42,9 @@ function Settings() {
   const [wifiPassword, setWifiPassword] = useState(hotel.wifiPassword ?? "");
   const [defaultLanguage, setDefaultLanguage] = useState(hotel.defaultLanguage);
   const [languages, setLanguages] = useState<string[]>(hotel.guestLanguages ?? ["en", "ka", "ru"]);
+  const [timezone, setTimezone] = useState(hotel.timezone ?? "Asia/Tbilisi");
+  const [requirePin, setRequirePin] = useState(hotel.requireGuestPin !== false);
+  const zones = TIMEZONES.includes(timezone) ? TIMEZONES : [timezone, ...TIMEZONES];
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -48,15 +53,18 @@ function Settings() {
         update({
           hotelId,
           name: name.trim(),
-          brandName: brandName.trim() || undefined,
-          collection: collection.trim() || undefined,
-          address: address.trim() || undefined,
-          phone: phone.trim() || undefined,
+          // An empty string clears the field on the server.
+          brandName: brandName.trim(),
+          collection: collection.trim(),
+          address: address.trim(),
+          phone: phone.trim(),
           checkoutTime,
-          wifiName: wifiName.trim() || undefined,
-          wifiPassword: wifiPassword.trim() || undefined,
+          wifiName: wifiName.trim(),
+          wifiPassword: wifiPassword.trim(),
           defaultLanguage,
           guestLanguages: languages,
+          timezone,
+          requireGuestPin: requirePin,
         }),
       "Settings saved",
     );
@@ -102,7 +110,26 @@ function Settings() {
                 <TextInput value={wifiPassword} onChange={(e) => setWifiPassword(e.target.value)} maxLength={60} />
               </Field>
             </div>
-            <div className="grid gap-4 sm:grid-cols-[200px_1fr]">
+            <div className="flex items-start justify-between gap-4 rounded-[20px] bg-paper p-4">
+              <div>
+                <p className="text-[14px] font-medium">Ask guests for their stay PIN</p>
+                <p className="mt-0.5 text-[13px] text-black/55">
+                  Reception gives each stay a 4-digit PIN. The room tag asks for it once before the guest can send requests, so a
+                  photo of the tag is not enough to order to the room.
+                </p>
+              </div>
+              <Toggle checked={requirePin} onChange={setRequirePin} label="Ask guests for their stay PIN" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-[200px_200px_1fr]">
+              <Field label="Time zone" hint="Used for today's stats and slots">
+                <Select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+                  {zones.map((z) => (
+                    <option key={z} value={z}>
+                      {z.replace("_", " ")}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
               <Field label="Staff language">
                 <Select value={defaultLanguage} onChange={(e) => setDefaultLanguage(e.target.value)}>
                   <option value="ka">ქართული</option>

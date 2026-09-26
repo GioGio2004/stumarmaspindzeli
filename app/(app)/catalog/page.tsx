@@ -114,25 +114,30 @@ function Catalog() {
               {shown.map((item, i) => {
                 const Icon = iconFor(item.icon);
                 return (
-                  <motion.button
+                  <motion.div
                     key={item._id}
-                    type="button"
                     layout
                     layoutId={`item-${item._id}`}
-                    onClick={() => setEditing(item)}
                     style={{ borderRadius: 24 }}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.96 }}
                     transition={{ type: "spring", bounce: 0.14, duration: 0.5, delay: Math.min(i * 0.03, 0.3) }}
                     whileHover={{ y: -3 }}
-                    className={cn("flex min-h-[176px] flex-col bg-white p-5 text-left", !item.visible && "opacity-60")}
+                    className={cn("relative flex min-h-[176px] flex-col bg-white p-5 text-left", !item.visible && "opacity-60")}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    {/* The whole card opens the editor; the toggle sits above it (no button inside a button). */}
+                    <button
+                      type="button"
+                      onClick={() => setEditing(item)}
+                      aria-label={`Edit ${item.guestTitle}`}
+                      className="absolute inset-0 rounded-[24px] outline-none focus-visible:ring-2 focus-visible:ring-ink"
+                    />
+                    <div className="pointer-events-none relative flex items-start justify-between gap-3">
                       <span className="grid size-11 place-items-center rounded-full bg-panel">
                         <Icon className="size-[18px]" />
                       </span>
-                      <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                      <span className="pointer-events-auto">
                         <Toggle
                           label={item.visible ? "Visible to guests" : "Hidden from guests"}
                           checked={item.visible}
@@ -142,15 +147,15 @@ function Catalog() {
                         />
                       </span>
                     </div>
-                    <p className="mt-4 text-[16px] font-medium leading-tight">{item.guestTitle}</p>
-                    <p className="mt-0.5 text-[13px] text-black/50">{item.title}</p>
-                    <div className="mt-auto flex flex-wrap gap-1.5 pt-4">
+                    <p className="pointer-events-none relative mt-4 text-[16px] font-medium leading-tight">{item.guestTitle}</p>
+                    <p className="pointer-events-none relative mt-0.5 text-[13px] text-black/50">{item.title}</p>
+                    <div className="pointer-events-none relative mt-auto flex flex-wrap gap-1.5 pt-4">
                       <Pill tone={item.kind === "offer" ? "lime" : "stone"}>{KIND_LABEL[item.kind as Kind]}</Pill>
                       {item.departmentName && <Pill tone="outline">{item.departmentName}</Pill>}
                       {item.price !== undefined && <Pill tone="ink">{item.price}₾</Pill>}
                       {item.steps.length > 0 && <Pill tone="stone">{item.steps.length} steps</Pill>}
                     </div>
-                  </motion.button>
+                  </motion.div>
                 );
               })}
             </AnimatePresence>

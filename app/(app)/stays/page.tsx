@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { motion } from "motion/react";
-import { CalendarPlus, Copy, ExternalLink, LogOut, Users } from "lucide-react";
+import { CalendarPlus, Copy, ExternalLink, KeyRound, LogOut, Users } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import { useActiveHotel } from "@/components/hotel-context";
 import {
@@ -27,7 +27,8 @@ import { RoleGate } from "@/components/role-gate";
 import { roomLink } from "@/components/room-link";
 import { StatusDot } from "@/components/tasks";
 import { api } from "@/convex/_generated/api";
-import { shortDate, startOfHotelDay, useNow } from "@/lib/format";
+import type { Id } from "@/convex/_generated/dataModel";
+import { dayKey, hotelTime, shortDate, startOfHotelDay, useNow } from "@/lib/format";
 import type { TaskStatus } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -43,11 +44,11 @@ export default function StaysPage() {
 }
 
 function FrontDesk() {
-  const { hotelId } = useActiveHotel();
+  const { hotelId, hotel } = useActiveHotel();
   const rooms = useQuery(api.rooms.list, { hotelId });
   const now = useNow(60_000);
   const [checkInRoom, setCheckInRoom] = useState<Room | null>(null);
-  const [stayRoom, setStayRoom] = useState<Room | null>(null);
+  const [openStay, setOpenStay] = useState<{ room: Room; stayId: Id<"stays"> } | null>(null);
   const [filter, setFilter] = useState<"all" | "occupied" | "vacant">("all");
 
   const floors = useMemo(() => {
@@ -62,7 +63,7 @@ function FrontDesk() {
   }, [rooms, filter]);
 
   const occupied = rooms?.filter((r) => r.currentStay).length ?? 0;
-  const endOfDay = startOfHotelDay(now) + 86_400_000;
+  const endOfDay = startOfHotelDay(now + 86_400_000, hotel.timezone);
   const departures = rooms?.filter((r) => r.currentStay && r.currentStay.expectedCheckOutAt < endOfDay).length ?? 0;
 
   return (
@@ -123,8 +124,10 @@ function FrontDesk() {
                     key={room._id}
                     room={room}
                     index={i}
-                    hidden={checkInRoom?._id === room._id || stayRoom?._id === room._id}
-                    onClick={() => (room.currentStay ? setStayRoom(room) : setCheckInRoom(room))}
+                    hidden={checkInRoom?._id === room._id || openStay?.room._id === room._id}
+                    onClick={() =>
+                      room.currentStay ? setOpenStay({ room, stayId: room.currentStay.stayId }) : setCheckInRoom(room)
+                    }
                   />
                 ))}
               </div>
@@ -133,8 +136,16 @@ function FrontDesk() {
         </div>
       )}
 
-      <CheckInSheet room={checkInRoom} onClose={() => setCheckInRoom(null)} />
-      <StaySheet room={stayRoom} onClose={() => setStayRoom(null)} />
+      <CheckInSheet
+        room={checkInRoom}
+        onClose={() => setCheckInRoom(null)}
+        onCheckedIn={(room, stayId) => {
+          // Straight to the stay: reception reads the guest PIN out right away.
+          setCheckInRoom(null);
+          setOpenStay({ room, stayId });
+        }}
+      />
+      <StaySheet room={openStay?.room ?? null} stayId={openStay?.stayId ?? null} onClose={() => setOpenStay(null)} />
     </>
   );
 }
@@ -190,8 +201,16 @@ const LANGUAGES = [
   { value: "ar", label: "العربية" },
 ];
 
-function CheckInSheet({ room, onClose }: { room: Room | null; onClose: () => void }) {
-  const { hotelId } = useActiveHotel();
+function CheckInSheet({
+  room,
+  onClose,
+  onCheckedIn,
+}: {
+  room: Room | null;
+  onClose: () => void;
+  onCheckedIn: (room: Room, stayId: Id<"stays">) => void;
+}) {
+  const { hotelId, hotel } = useActiveHotel();
   const checkIn = useMutation(api.stays.checkIn);
   const run = useRun();
   const [guestLabel, setGuestLabel] = useState("");
@@ -204,10 +223,10 @@ function CheckInSheet({ room, onClose }: { room: Room | null; onClose: () => voi
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!room) return;
-    const checkout = new Date();
-    checkout.setDate(checkout.getDate() + Number(nights));
-    checkout.setHours(12, 0, 0, 0);
-    const ok = await run(
+    // Check-out day at the hotel's check-out time, in the hotel's time zone.
+    const leaveDay = dayKey(Date.now() + Number(nights) * 86_400_000, hotel.timezone);
+    const checkout = hotelTime(leaveDay, hotel.checkoutTime ?? "12:00", hotel.timezone);
+    const stayId = await run(
       () =>
         checkIn({
           hotelId,
@@ -216,15 +235,15 @@ function CheckInSheet({ room, onClose }: { room: Room | null; onClose: () => voi
           language,
           adults: Number(adults),
           children: Number(children),
-          expectedCheckOutAt: checkout.getTime(),
+          expectedCheckOutAt: checkout,
           pmsRef: pmsRef.trim() || undefined,
         }),
       `Room ${room.number} checked in`,
     );
-    if (ok) {
+    if (stayId) {
       setGuestLabel("");
       setPmsRef("");
-      onClose();
+      onCheckedIn(room, stayId);
     }
   };
 
@@ -238,7 +257,7 @@ function CheckInSheet({ room, onClose }: { room: Room | null; onClose: () => voi
     >
       <form onSubmit={submit} className="space-y-4 pb-2">
         <Field label="Guest label" hint="Optional, e.g. a surname or 'Family of 4'">
-          <TextInput value={guestLabel} onChange={(e) => setGuestLabel(e.target.value)} maxLength={60} placeholder="Mr. Beridze" />
+          <TextInput value={guestLabel} onChange={(e) => setGuestLabel(e.target.value)} maxLength={40} placeholder="Mr. Beridze" />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Guest language">
@@ -286,11 +305,13 @@ function CheckInSheet({ room, onClose }: { room: Room | null; onClose: () => voi
   );
 }
 
-function StaySheet({ room, onClose }: { room: Room | null; onClose: () => void }) {
-  const stayId = room?.currentStay?.stayId;
+function StaySheet({ room, stayId, onClose }: { room: Room | null; stayId: Id<"stays"> | null; onClose: () => void }) {
+  const { hotel } = useActiveHotel();
   const stay = useQuery(api.stays.get, stayId ? { stayId } : "skip");
   const checkOut = useMutation(api.stays.checkOut);
   const extend = useMutation(api.stays.extend);
+  const resetPin = useMutation(api.stays.resetPin);
+  const pinOn = hotel.requireGuestPin !== false;
   const run = useRun();
   const toast = useToast();
 
@@ -323,6 +344,28 @@ function StaySheet({ room, onClose }: { room: Room | null; onClose: () => void }
               }
             />
           </div>
+
+          {pinOn && stay.stay.status === "active" && stay.stay.guestPin && (
+            <div className="flex items-center justify-between gap-4 rounded-[22px] bg-ink p-4 text-white">
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-[13px] text-white/60">
+                  <KeyRound className="size-3.5" />
+                  Guest PIN
+                </p>
+                <p className="mt-0.5 font-mono text-3xl font-semibold tracking-[0.35em] text-lime tabular-nums">{stay.stay.guestPin}</p>
+                <p className="mt-1 text-[12px] text-white/55">Tell the guest at check-in. Their phone asks for it once.</p>
+              </div>
+              <Button
+                size="sm"
+                variant="white"
+                onClick={() =>
+                  run(() => resetPin({ stayId: stay.stay._id }), "New PIN made. Phones using the old one must enter it again.")
+                }
+              >
+                Reset
+              </Button>
+            </div>
+          )}
 
           <div className="rounded-[22px] bg-paper p-4">
             <p className="text-[13px] font-medium">Room tag link</p>

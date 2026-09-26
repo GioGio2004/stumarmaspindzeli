@@ -1,9 +1,10 @@
 "use client";
 
 import { RedirectToSignIn } from "@clerk/nextjs";
-import { Authenticated, AuthLoading, Unauthenticated, useMutation } from "convex/react";
+import { Authenticated, AuthLoading, Unauthenticated, useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Dots } from "@/components/brand/glyphs";
 import { AuthFrame } from "@/components/auth-frame";
 import { ArrowButton, Field, Segmented, TextInput, useRun } from "@/components/kit";
 import { api } from "@/convex/_generated/api";
@@ -33,6 +34,18 @@ function Onboarding() {
   const joinHotel = useMutation(api.hotels.join);
   const router = useRouter();
   const run = useRun();
+  const me = useQuery(api.users.current);
+  const memberships = useQuery(api.hotels.mine);
+  const member = memberships !== undefined && memberships.length > 0;
+
+  // Already on a team (an invite was accepted, or they came here by URL): go to work.
+  useEffect(() => {
+    if (member && !busy) router.replace("/dashboard");
+  }, [member, busy, router]);
+
+  if (me === undefined || me === null || memberships === undefined || (member && !busy)) {
+    return <Dots className="size-8 animate-pulse" />;
+  }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();

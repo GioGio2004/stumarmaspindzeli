@@ -27,17 +27,20 @@ import { boardColumns } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 export default function RequestsPage() {
-  const { hotelId, role } = useActiveHotel();
+  const { hotelId, hotel, role, membership } = useActiveHotel();
   const now = useNow(60_000);
   const [department, setDepartment] = useState<string>("all");
   const [openTask, setOpenTask] = useState<Id<"tasks"> | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const departments = useQuery(api.departments.list, { hotelId });
+  const allDepartments = useQuery(api.departments.list, { hotelId });
+  // Staff only see their own teams' tasks; offering other tabs would just error.
+  const departments =
+    role === "staff" ? allDepartments?.filter((d) => membership.departmentIds.includes(d._id)) : allDepartments;
   const board = useQuery(api.tasks.board, {
     hotelId,
     departmentId: department === "all" ? undefined : (department as Id<"departments">),
-    doneSince: startOfHotelDay(now),
+    doneSince: startOfHotelDay(now, hotel.timezone),
   });
 
   return (

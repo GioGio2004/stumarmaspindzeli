@@ -89,6 +89,18 @@ export const byToken = query({
   },
 });
 
+/** Every hotel's public name and slug, for the storefront's home page. */
+export const directory = query({
+  args: {},
+  returns: v.array(
+    v.object({ name: v.string(), brandName: v.optional(v.string()), slug: v.string() }),
+  ),
+  handler: async (ctx) => {
+    const hotels = await ctx.db.query("hotels").take(100);
+    return hotels.map((h) => ({ name: h.name, brandName: h.brandName, slug: h.slug }));
+  },
+});
+
 /** Public preview of a hotel's guest app (no room, stay or Wi-Fi). */
 export const bySlug = query({
   args: { slug: v.string() },

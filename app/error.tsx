@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { Clover, Dots, Ring, Star4 } from "@/components/brand/glyphs";
 import { buttonClass } from "@/components/kit";
+import { errorText } from "@/lib/errors";
 
 // Anything that throws while rendering lands here instead of a blank page.
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
@@ -12,7 +13,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
     console.error(error);
   }, [error]);
 
-  const message = error.message.replace(/^.*Uncaught (Convex)?Error: /, "").split("\n")[0];
+  const message = errorText(error);
 
   return (
     <main className="grid min-h-dvh place-items-center p-3">

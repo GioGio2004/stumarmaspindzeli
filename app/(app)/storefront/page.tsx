@@ -329,8 +329,25 @@ function TileForm({ tile, onDone }: { tile: Tile | null; onDone: () => void }) {
         return { title: t.trim(), body: rest.join("|").trim() };
       }),
     };
+    // On edit, null clears a field (undefined would keep the old value).
+    const orNull = <T,>(value: T | undefined) => (value === undefined ? null : value);
     const ok = tile
-      ? await run(() => update({ tileId: tile._id, ...fields }), "Card saved")
+      ? await run(
+          () =>
+            update({
+              tileId: tile._id,
+              ...fields,
+              navLabel: orNull(fields.navLabel),
+              section: orNull(fields.section),
+              itemKey: orNull(fields.itemKey),
+              slots: orNull(fields.slots),
+              options: orNull(fields.options),
+              facts: orNull(fields.facts),
+              hours: orNull(fields.hours),
+              body: orNull(fields.body),
+            }),
+          "Card saved",
+        )
       : await run(() => create({ hotelId, ...fields }), "Card added");
     if (ok !== undefined) onDone();
   };
@@ -485,7 +502,7 @@ function HeroForm({ settings }: { settings: Config["settings"] }) {
       onSubmit={(e) => {
         e.preventDefault();
         run(
-          () => save({ hotelId, heroEyebrow, heroTitle, heroHighlight, heroTitleEnd, heroSubtitle, footerNote: footerNote || undefined }),
+          () => save({ hotelId, heroEyebrow, heroTitle, heroHighlight, heroTitleEnd, heroSubtitle, footerNote: footerNote.trim() }),
           "Welcome text saved",
         );
       }}

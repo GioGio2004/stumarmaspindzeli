@@ -31,7 +31,7 @@ export default function PlatformPage() {
 function Platform() {
   const hotels = useQuery(api.platform.hotels);
   const users = useQuery(api.platform.users);
-  const { setHotelId } = useHotel();
+  const { setHotelId, memberships } = useHotel();
   const [tab, setTab] = useState<"hotels" | "people">("hotels");
 
   return (
@@ -74,14 +74,18 @@ function Platform() {
                 <p className="text-[13px] text-black/50">
                   {row.memberCount} people · {row.roomCount} rooms · {row.inHouse} in house
                 </p>
-                <Link
-                  href="/dashboard"
-                  onClick={() => setHotelId(row.hotel._id)}
-                  className="mt-4 inline-flex w-max items-center gap-1.5 rounded-full bg-panel px-4 py-2 text-[13px] font-medium transition hover:bg-ink hover:text-white"
-                >
-                  Open
-                  <ArrowUpRight className="size-3.5" />
-                </Link>
+                {memberships.some((m) => m.hotel._id === row.hotel._id) ? (
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setHotelId(row.hotel._id)}
+                    className="mt-4 inline-flex w-max items-center gap-1.5 rounded-full bg-panel px-4 py-2 text-[13px] font-medium transition hover:bg-ink hover:text-white"
+                  >
+                    Open
+                    <ArrowUpRight className="size-3.5" />
+                  </Link>
+                ) : (
+                  <p className="mt-4 text-[12px] text-black/45">Adding you to this hotel… reload in a moment.</p>
+                )}
               </motion.div>
             ))}
           </div>

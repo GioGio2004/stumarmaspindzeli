@@ -1,10 +1,13 @@
 "use client";
 
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { BellRing } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
+import { errorText } from "@/lib/errors";
 import { Toggle } from "./kit";
+
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
 function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -25,6 +28,10 @@ export function PushToggle() {
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The browser can hold a subscription the server no longer has (another
+  // account used this phone, or it was cleaned up). Only both together is "on".
+  const known = useQuery(api.pushSubscriptions.isSubscribed, subscription ? { endpoint: subscription.endpoint } : "skip");
+  const on = subscription !== null && known === true;
 
   useEffect(() => {
     if (!supported) return;
@@ -32,25 +39,26 @@ export function PushToggle() {
       .register("/sw.js", { scope: "/", updateViaCache: "none" })
       .then((reg) => reg.pushManager.getSubscription())
       .then((sub) => setSubscription(sub))
-      .catch((e) => setError(String(e)));
+      .catch(() => setError("Couldn't start notifications on this device"));
   }, [supported]);
 
   async function turnOn() {
+    if (!VAPID_PUBLIC_KEY) return;
     setBusy(true);
     setError(null);
     try {
       const permission = await Notification.requestPermission();
-      if (permission !== "granted") throw new Error("Notifications are blocked in this browser");
+      if (permission !== "granted") throw new Error("Notifications are blocked in this browser's settings");
       const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
-      });
+      const sub =
+        (await reg.pushManager.getSubscription()) ??
+        (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) }));
       const json = sub.toJSON();
-      await subscribe({ endpoint: sub.endpoint, p256dh: json.keys!.p256dh, auth: json.keys!.auth, userAgent: navigator.userAgent });
+      if (!json.keys?.p256dh || !json.keys?.auth) throw new Error("This browser returned an incomplete subscription");
+      await subscribe({ endpoint: sub.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth, userAgent: navigator.userAgent.slice(0, 300) });
       setSubscription(sub);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -59,14 +67,23 @@ export function PushToggle() {
   async function turnOff() {
     if (!subscription) return;
     setBusy(true);
+    setError(null);
     try {
       await unsubscribe({ endpoint: subscription.endpoint });
       await subscription.unsubscribe();
       setSubscription(null);
+    } catch (e) {
+      setError(errorText(e));
     } finally {
       setBusy(false);
     }
   }
+
+  const hint = !supported
+    ? "Not available here. On iPhone, add to Home Screen first."
+    : !VAPID_PUBLIC_KEY
+      ? "Notifications aren't set up for this app yet."
+      : (error ?? "Buzz me when my team gets a task");
 
   return (
     <div className="flex items-center gap-3 rounded-[22px] bg-white px-4 py-3">
@@ -75,12 +92,10 @@ export function PushToggle() {
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[14px] font-medium">Notifications on this phone</p>
-        <p className="text-[12px] text-black/50">
-          {!supported ? "Not available here. On iPhone, add to Home Screen first." : error ?? "Buzz me when my team gets a task"}
-        </p>
+        <p className={error ? "text-[12px] text-red-600" : "text-[12px] text-black/50"}>{hint}</p>
       </div>
-      {supported && (
-        <Toggle label="Notifications" checked={subscription !== null} disabled={busy} onChange={(on) => (on ? turnOn() : turnOff())} />
+      {supported && VAPID_PUBLIC_KEY && (
+        <Toggle label="Notifications" checked={on} disabled={busy} onChange={(next) => (next ? turnOn() : turnOff())} />
       )}
     </div>
   );

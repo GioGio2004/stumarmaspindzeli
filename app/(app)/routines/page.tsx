@@ -102,16 +102,20 @@ function Routines() {
                   exit={{ opacity: 0, scale: 0.96 }}
                   transition={{ delay: i * 0.03 }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setEditing(routine)}
-                    className={cn("flex w-full flex-col gap-4 rounded-[24px] bg-white p-5 text-left transition hover:shadow-[0_8px_30px_rgba(0,0,0,0.05)]", !routine.active && "opacity-55")}
+                  <div
+                    className={cn("relative flex w-full flex-col gap-4 rounded-[24px] bg-white p-5 text-left transition hover:shadow-[0_8px_30px_rgba(0,0,0,0.05)]", !routine.active && "opacity-55")}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(routine)}
+                      aria-label={`Edit ${routine.title ?? routine.itemTitle}`}
+                      className="absolute inset-0 rounded-[24px] outline-none focus-visible:ring-2 focus-visible:ring-ink"
+                    />
+                    <div className="pointer-events-none relative flex items-start justify-between gap-3">
                       <span className="grid size-11 place-items-center rounded-full bg-panel">
                         <CalendarClock className="size-[18px]" />
                       </span>
-                      <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                      <span className="pointer-events-auto">
                         <Toggle
                           label={routine.active ? "Active" : "Paused"}
                           checked={routine.active}
@@ -119,18 +123,18 @@ function Routines() {
                         />
                       </span>
                     </div>
-                    <div>
+                    <div className="pointer-events-none relative">
                       <p className="text-[16px] font-medium">{routine.title ?? routine.itemTitle}</p>
                       <p className="mt-0.5 text-[13px] text-black/50">
                         {daysText(routine.daysOfWeek)} at {routine.time}
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="pointer-events-none relative flex flex-wrap gap-1.5">
                       <Pill tone="stone">{routine.departmentName}</Pill>
                       <Pill tone="outline">{SCOPE_LABEL[routine.scope as Scope]}</Pill>
                       {routine.lastRunDay && <Pill tone="lime">Last run {routine.lastRunDay}</Pill>}
                     </div>
-                  </button>
+                  </div>
                 </motion.li>
               ))}
             </AnimatePresence>
@@ -165,6 +169,8 @@ function RoutineForm({ routine, onDone }: { routine: Routine | null; onDone: () 
   const [scope, setScope] = useState<Scope>((routine?.scope as Scope) ?? "once");
 
   const chosenItem = templates.find((t) => t._id === itemId) ?? templates[0];
+  // The routine's playbook was archived: say so instead of silently swapping it.
+  const lostItem = Boolean(routine && itemId && !templates.some((t) => t._id === itemId));
   const dept = departmentId || chosenItem?.departmentId || departments?.[0]?._id || "";
 
   const submit = async (e: FormEvent) => {
@@ -179,7 +185,7 @@ function RoutineForm({ routine, onDone }: { routine: Routine | null; onDone: () 
       scope,
     };
     const ok = routine
-      ? await run(() => update({ routineId: routine._id, ...fields }), "Routine saved")
+      ? await run(() => update({ routineId: routine._id, ...fields, title: fields.title ?? null }), "Routine saved")
       : await run(() => create({ hotelId, ...fields, active: true }), "Routine scheduled");
     if (ok !== undefined) onDone();
   };
@@ -194,6 +200,9 @@ function RoutineForm({ routine, onDone }: { routine: Routine | null; onDone: () 
             </option>
           ))}
         </Select>
+        {lostItem && (
+          <p className="mt-1.5 text-[12px] text-red-600">The playbook this routine used was archived. Saving switches it to the one selected.</p>
+        )}
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Team">

@@ -49,10 +49,19 @@ export function TaskCard({
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
       className={cn(
-        "group relative cursor-pointer rounded-[22px] bg-white p-4 ring-1 ring-transparent transition-shadow hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)]",
+        "group relative cursor-pointer rounded-[22px] bg-white p-4 ring-1 ring-transparent transition-shadow outline-none hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] focus-visible:ring-2 focus-visible:ring-ink",
         task.escalatedAt && status === "open" && "ring-red-300",
       )}
+      tabIndex={0}
+      aria-label={`Room ${task.roomNumber ?? "none"}: ${task.title}. Open details`}
       onClick={() => onOpen(task._id)}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(task._id);
+        }
+      }}
     >
       <div className="flex items-start gap-3">
         <span
@@ -151,7 +160,14 @@ export function TaskDetail({ taskId, onDone }: { taskId: Id<"tasks">; onDone?: (
   const now = useNow();
 
   if (task === undefined) return <Skeleton className="h-64 bg-panel" />;
-  if (task === null) return <p className="text-black/55">This task no longer exists.</p>;
+  if (task === null) {
+    return (
+      <div className="py-6 text-center">
+        <p className="text-lg font-medium">This task isn&apos;t available</p>
+        <p className="mt-1 text-[14px] text-black/55">It was removed, or it belongs to a hotel you&apos;re not working in right now.</p>
+      </div>
+    );
+  }
 
   const status = task.status as TaskStatus;
   const active = status === "accepted" || status === "in_progress";

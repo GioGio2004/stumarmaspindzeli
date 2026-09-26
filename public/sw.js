@@ -32,19 +32,20 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = new URL(event.notification.data?.url || "/queue", self.location.origin).href;
+  // Only ever open pages of this app.
+  const target = new URL(event.notification.data?.url || "/queue", self.location.origin);
+  const url = target.origin === self.location.origin ? target.href : new URL("/queue", self.location.origin).href;
 
   event.waitUntil(
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((windows) => {
-        for (const client of windows) {
-          if ("focus" in client) {
-            client.navigate(url);
-            return client.focus();
-          }
-        }
-        return self.clients.openWindow(url);
+        const client = windows.find((w) => w.url.startsWith(self.location.origin) && "focus" in w);
+        if (!client) return self.clients.openWindow(url);
+        return client
+          .focus()
+          .then((focused) => (focused && "navigate" in focused ? focused.navigate(url) : self.clients.openWindow(url)))
+          .catch(() => self.clients.openWindow(url));
       }),
   );
 });

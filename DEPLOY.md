@@ -52,11 +52,25 @@ Already set on production: `CLERK_JWT_ISSUER_DOMAIN`, `CLERK_SECRET_KEY`,
    npx convex run --prod seed:gino '{"ownerExternalId":"user_3JnEYvkFw24xw0HTJn3VZNWLzXh"}'
    ```
 
-3. Regenerate the storefront API from production and push the storefront:
+3. Only if Convex functions changed since the last sync: regenerate the
+   storefront API and push the storefront (dev and prod run the same code, so
+   the file is identical either way):
 
    ```bash
    npm run api:sync -- --prod
    ```
+
+4. Check the first deploy worked: open a room link from Rooms, check a guest in
+   at Front desk and read the PIN off the stay, then send a request from a phone.
+
+## Guest PIN
+
+Each check-in gets a 4-digit stay PIN, shown to reception in the stay sheet at
+Front desk (with a Reset button). The first time a phone opens the room tag it
+asks for the PIN, then remembers a long random key for that stay. Without it a
+guest can browse but not send requests or see the room's request history.
+Check-out or Reset makes old phones ask again. Managers can switch the PIN off
+in Settings → Guest stay.
 
 ## Clerk (development instance)
 
