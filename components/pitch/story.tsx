@@ -1,14 +1,15 @@
 "use client";
 
 import { animate, motion } from "motion/react";
-import { Check, Languages, Nfc, Radio, Route, type LucideIcon } from "lucide-react";
+import { BedDouble, Check, Languages, Nfc, Radio, Repeat, Route, Star, type LucideIcon } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import type { SlideProps } from "./deck";
 import { C, Eyebrow, Headline, Rise, Word, Words, ease } from "./slides";
 
-// The Pitch Canvas slides around the demo: market pain, what's unique,
-// traction, business model, team and the ask.
+// The slides after the demo: behind the scenes (what the manager sees), the
+// business model and the team. Market, unique, traction, the ₾5 pricing and the
+// ask are kept here too, but are not in the deck order right now.
 
 // ---- numbers ---------------------------------------------------------------------------
 // Market facts: Geostat 2025 (via Georgia Today). Pricing and payback are our
@@ -117,7 +118,8 @@ export function MarketSlide({ step }: SlideProps) {
           </span>
         ))}
       </Rise>
-      <p className="absolute bottom-10 left-[140px] text-[26px]">წყაროები: {FACTS.source} · SmartStay 3.0-ის კვლევა</p>
+      {/* Right-aligned: in Georgian the pains wrap to a second row on the left. */}
+      <p className="absolute bottom-10 right-[140px] text-[26px]">წყაროები: {FACTS.source} · SmartStay 3.0-ის კვლევა</p>
     </div>
   );
 }
@@ -128,7 +130,7 @@ const PILLARS: { icon: LucideIcon; title: string }[] = [
   { icon: Nfc, title: "არც აპლიკაცია, არც რეგისტრაცია" },
   { icon: Route, title: "მოთხოვნას მხოლოდ საჭირო გუნდი იღებს" },
   { icon: Languages, title: "სტუმარი ინგლისურად, პერსონალი ქართულად" },
-  { icon: Radio, title: "რეალურ დროში: სტუმარი, პერსონალი, მენეჯერი" },
+  { icon: Radio, title: "სტუმარიც, პერსონალიც და მენეჯერიც ხედავს" },
 ];
 
 export function UniqueSlide() {
@@ -203,12 +205,125 @@ export function TractionSlide() {
   );
 }
 
-// ---- business model --------------------------------------------------------------------
+// ---- behind the scenes: what the manager sees ---------------------------------------------
+// Sample figures for the pitch; the service names are the catalog's staff titles.
+
+type Row = { label: string; value: number };
+
+const TOP_SERVICES: Row[] = [
+  { label: "აუზის პირსახოცები", value: 42 },
+  { label: "სუფთა პირსახოცები", value: 31 },
+  { label: "ოთახის დალაგება", value: 18 },
+];
+
+const STAFF_TIMES: Row[] = [
+  { label: "ნინო ბერიძე", value: 6 },
+  { label: "ლევან კაპანაძე", value: 9 },
+  { label: "მარიამ დოლიძე", value: 14 },
+];
+
+/** A labelled list whose lime bars grow in, scaled to the largest value. */
+function Bars({ rows, unit, delay }: { rows: Row[]; unit?: string; delay: number }) {
+  const max = Math.max(...rows.map((r) => r.value));
+  return (
+    <ul className="mt-8 space-y-6">
+      {rows.map((r, i) => (
+        <li key={r.label}>
+          <div className="flex items-baseline justify-between gap-4 text-[30px]">
+            <span className="truncate">{r.label}</span>
+            <span className="shrink-0 font-medium tabular-nums">
+              {r.value}
+              {unit && ` ${unit}`}
+            </span>
+          </div>
+          <div className="mt-2.5 h-3 overflow-hidden rounded-full bg-white/10">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: C.lime }}
+              initial={{ width: "0%" }}
+              animate={{ width: `${(r.value / max) * 100}%` }}
+              transition={{ delay: delay + i * 0.1, duration: 0.9, ease }}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function InsightsSlide({ step }: SlideProps) {
+  return (
+    <div className="absolute inset-0 px-[140px] pt-[96px]">
+      <Header eyebrow="კულისებში">
+        <Words text="სრული აუდიტი ერთ ეკრანზე," delay={0.1} />
+        <br />
+        <Words text="რეალურ დროში." delay={0.35} />
+      </Header>
+      <div className="mt-16 grid grid-cols-3 gap-8">
+        <Card delay={0.5} className="rounded-[36px] p-10">
+          <p className="text-[36px] font-medium">ყველაზე მოთხოვნადი</p>
+          <Bars rows={TOP_SERVICES} delay={0.8} />
+        </Card>
+        <Card delay={0.62} className="rounded-[36px] p-10">
+          <p className="text-[36px] font-medium">შესრულების დრო</p>
+          <Bars rows={STAFF_TIMES} unit="წთ" delay={0.92} />
+        </Card>
+        <Card delay={0.1} show={step >= 1} className="rounded-[36px] p-10" style={{ boxShadow: `inset 0 0 0 4px ${C.lime}` }}>
+          <p className="text-[36px] font-medium">რა აწუხებს სტუმარს</p>
+          <div className="mt-8 rounded-[24px] p-6" style={{ background: "#2b1b18" }}>
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[30px] font-medium">ოთახი 312</span>
+              <span className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Star key={n} className="size-7" color={n <= 2 ? "#ff8c7a" : "rgba(255,255,255,0.3)"} fill={n <= 2 ? "#ff8c7a" : "none"} />
+                ))}
+              </span>
+            </div>
+            <p className="mt-3 text-[28px] leading-snug">„კონდიციონერი ხმაურობს“</p>
+          </div>
+          <p className="mt-6 flex items-center gap-3 text-[28px]">
+            <span className="size-3.5 shrink-0 rounded-full" style={{ background: C.lime }} />
+            გამგზავრებამდე 2 დღეა
+          </p>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ---- business model, as in the spoken pitch (no price on the slide) ----------------------------
+
+const MODEL: { icon: LucideIcon; title: string }[] = [
+  { icon: Repeat, title: "ყოველთვიური გამოწერა (SaaS)" },
+  { icon: BedDouble, title: "ფასი — ოთახების რაოდენობის მიხედვით" },
+];
+
+export function SaasSlide() {
+  return (
+    <div className="absolute inset-0 px-[140px] pt-[96px]">
+      <Header eyebrow="ბიზნესმოდელი">
+        <Words text="გლობალური ინდუსტრიული" delay={0.1} />
+        <br />
+        <Words text="სტანდარტი." delay={0.3} />
+      </Header>
+      <div className="mt-16 grid grid-cols-2 gap-8">
+        {MODEL.map((m, i) => (
+          <Card key={m.title} delay={0.5 + i * 0.12} className="flex items-center gap-8 rounded-[36px] p-10">
+            <IconDot icon={m.icon} />
+            <p className="text-balance text-[46px] font-medium leading-tight tracking-[-0.02em]">{m.title}</p>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---- business model with the ₾5 price (out of the pitch for now) --------------------------
 
 export function BusinessSlide({ step }: SlideProps) {
   const cards: { big: ReactNode; text: string; show: boolean; lime?: boolean }[] = [
-    { big: gel(exampleMonthly), text: `თვეში, ${FACTS.exampleRooms}-ოთახიანი სასტუმროსთვის`, show: true },
-    { big: String(ordersToPayBack), text: "შეკვეთა ოთახში — და თვის ხარჯი დაფარულია", show: true, lime: true },
+    { big: gel(exampleMonthly), text: `თვეში, ${FACTS.exampleRooms} ოთახზე`, show: true },
+    { big: String(ordersToPayBack), text: "შეკვეთა ოთახში ფარავს თვის ხარჯს", show: true, lime: true },
     {
       // "მლნ ₾" is set smaller so the number still fits its card at 140px.
       big: (
@@ -217,7 +332,7 @@ export function BusinessSlide({ step }: SlideProps) {
           <span className="ml-3 text-[64px] tracking-[-0.02em]">მლნ ₾</span>
         </>
       ),
-      text: "წელიწადში, საქართველოს ყველა სასტუმროში",
+      text: "წლიური ბაზარი საქართველოში",
       show: step >= 1,
     },
   ];
@@ -247,25 +362,23 @@ export function BusinessSlide({ step }: SlideProps) {
 // ---- team ----------------------------------------------------------------------------------
 
 // Add teammates here.
-const TEAM: { name: string; role: string }[] = [{ name: "გიორგი ხვიჩია", role: "დამფუძნებელი · პროდუქტი და დეველოპმენტი" }];
+const TEAM: { name: string; role: string }[] = [
+  { name: "გიორგი ხვიჩია", role: "Full-stack დეველოპერი" },
+  { name: "საბა ხვიჩია", role: "Frontend დეველოპერი და დიზაინერი" },
+  { name: "ირაკლი ინანიშვილი", role: "AI დეველოპერი" },
+];
 
 export function TeamSlide() {
   return (
-    <div className="absolute inset-0 grid grid-cols-[1fr_1fr] items-center gap-20 px-[140px]">
-      <div>
-        <Header eyebrow="გუნდი">
-          <Words text="რატომ ჩვენ?" delay={0.1} />
-        </Header>
-        <Rise delay={0.5} className="mt-10 space-y-2 text-[48px] leading-snug">
-          <p>სტუმართმოყვარეობა ჩვენი კულტურაა.</p>
-          <p className="text-balance">ჩვენი დახმარებით პატარა გუნდიც დიდივით მასპინძლობს.</p>
-        </Rise>
-      </div>
-      <div className="space-y-6">
+    <div className="absolute inset-0 px-[140px] pt-[96px]">
+      <Header eyebrow="გუნდი">
+        <Words text="ვინ ვართ ჩვენ?" delay={0.1} />
+      </Header>
+      <div className="mt-16 grid grid-cols-3 gap-8">
         {TEAM.map((m, i) => (
-          <Card key={m.name} delay={0.4 + i * 0.12} className="flex items-center gap-8 rounded-[40px] p-10">
+          <Card key={m.name} delay={0.4 + i * 0.12} className="rounded-[40px] p-10">
             <span
-              className="grid size-32 shrink-0 place-items-center rounded-full text-[48px] font-semibold"
+              className="grid size-32 place-items-center rounded-full text-[48px] font-semibold"
               style={{ background: C.graphite, boxShadow: `inset 0 0 0 4px ${C.lime}` }}
             >
               {m.name
@@ -273,10 +386,8 @@ export function TeamSlide() {
                 .map((p) => p[0])
                 .join("")}
             </span>
-            <span>
-              <span className="block text-[52px] font-medium leading-tight tracking-[-0.03em]">{m.name}</span>
-              <span className="mt-2 block text-[34px]">{m.role}</span>
-            </span>
+            <span className="mt-8 block text-[40px] font-medium leading-tight tracking-[-0.03em]">{m.name}</span>
+            <span className="mt-3 block text-balance text-[32px] leading-snug">{m.role}</span>
           </Card>
         ))}
       </div>
@@ -286,7 +397,7 @@ export function TeamSlide() {
 
 // ---- the ask + call to action ---------------------------------------------------------------
 
-const USE_OF_FUNDS = ["NFC ტეგი 215-ვე ოთახში", "პერსონალის ტრენინგი ქართულად", "PMS-თან ინტეგრაცია"];
+const USE_OF_FUNDS = ["NFC თეგი 215-ვე ოთახში", "პერსონალის ტრენინგი ქართულად", "PMS-თან ინტეგრაცია"];
 
 export function AskSlide({ step }: SlideProps) {
   return (
@@ -308,7 +419,7 @@ export function AskSlide({ step }: SlideProps) {
         </div>
       </div>
       <Card delay={0.2} show={step >= 1} className="self-center rounded-[44px] p-10 text-center">
-        <p className="inline-block -rotate-2 font-script text-[64px] leading-none">სცადეთ ახლავე</p>
+        <p className="inline-block -rotate-2 text-[64px] leading-none">სცადეთ ახლავე</p>
         <div className="mx-auto mt-8 w-[380px] rounded-[28px] bg-white p-5">
           <Image src="/pitch/qr.svg" alt="QR კოდი: stumar-maspindzeli-storefront.vercel.app" width={300} height={300} unoptimized className="h-auto w-full" />
         </div>

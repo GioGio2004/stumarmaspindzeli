@@ -32,7 +32,7 @@ import { C, ease } from "./slides";
 // Captions, callouts and the staff push are in Georgian; the phone and the
 // board stay as the real apps show them (guest app in English, staff titles in Georgian).
 const CAPTIONS = [
-  "214-ე ოთახი. ტეგი საწოლის გვერდით.",
+  "214-ე ოთახი. თეგი საწოლის გვერდით.",
   "აპი იხსნება. რეგისტრაცია არ სჭირდება.",
   "„ორი სუფთა პირსახოცი, თუ შეიძლება“.",
   "დასუფთავება იღებს მოთხოვნას.",
@@ -138,9 +138,9 @@ function scene(step: number, t: number) {
 
 // What the audience should notice, pinned next to it.
 const CALLOUTS: { step: number; at: number; text: string; x: number; y: number }[] = [
-  { step: 0, at: 0.9, text: "ჩამოტვირთვის გარეშე", x: 85, y: 440 },
+  { step: 0, at: 0.9, text: "გადმოწერის გარეშე", x: 85, y: 440 },
   { step: 2, at: 2.5, text: "მხოლოდ დასუფთავება იღებს, ქართულად", x: 600, y: 705 },
-  { step: 3, at: 1.9, text: "სტუმარი მაშინვე ხედავს", x: 120, y: 752 },
+  { step: 3, at: 1.9, text: "სტუმარი მაშინვე ხედავს", x: 95, y: 752 },
   { step: 5, at: 0.9, text: "შესრულების დრო იზომება", x: 1340, y: 705 },
   { step: 6, at: 2.5, text: "+35₾ ოთახის ანგარიშზე", x: 600, y: 745 },
 ];
@@ -225,7 +225,7 @@ function Caption({ step }: { step: number }) {
   return (
     <div className="absolute left-[80px] right-[60px] top-[36px] flex items-start justify-between gap-10">
       <div>
-        <span className="inline-block -rotate-2 font-script text-[48px] leading-none">როგორ მუშაობს</span>
+        <span className="inline-block -rotate-2 text-[48px] leading-none">როგორ მუშაობს</span>
         <AnimatePresence mode="wait">
           <motion.h2
             key={step}

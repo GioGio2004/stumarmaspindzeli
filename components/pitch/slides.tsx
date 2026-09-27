@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { BarChart3, BellRing, Check, CircleHelp, ConciergeBell, Nfc, PhoneCall, Radio, Route, type LucideIcon } from "lucide-react";
+import { BarChart3, BellRing, ConciergeBell, Languages, Nfc, PhoneCall, Radio, Route, ShieldCheck, Star, Unlink, type LucideIcon } from "lucide-react";
 import { Fragment, useEffect, useState, type ComponentType, type CSSProperties, type ReactNode, type SVGProps } from "react";
 import { Clover, Leaf, Ring, Star4 } from "@/components/brand/glyphs";
 import { Scribble } from "@/components/brand/scribble";
@@ -66,10 +66,12 @@ export function Rise({ children, delay = 0, show = true, className }: { children
   );
 }
 
+// Caveat has no Georgian letters, so the deck's Georgian labels use the sans font
+// (Noto Sans Georgian) instead of font-script; the tilt keeps the handwritten feel.
 export function Eyebrow({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
   return (
     <Rise delay={delay}>
-      <span className="inline-block -rotate-2 font-script text-[60px] leading-none">{children}</span>
+      <span className="inline-block -rotate-2 text-[60px] leading-none">{children}</span>
     </Rise>
   );
 }
@@ -167,7 +169,10 @@ export function IntroSlide() {
           სტუმარ-მასპინძელი
         </Rise>
         <Rise delay={3.0} className="mt-14 text-[68px] leading-tight">
-          მასპინძელი სასტუმროს ყველა ოთახში.
+          ზუსტი სურათი თქვენი სტუმრის შესახებ.
+        </Rise>
+        <Rise delay={3.25} className="mt-6 text-[44px]">
+          რას აკეთებს · რა აწუხებს · რა უქმნის კომფორტს
         </Rise>
       </div>
       <Doors />
@@ -175,24 +180,24 @@ export function IntroSlide() {
   );
 }
 
-// ---- 2. the pain, and what we make ----------------------------------------------------
+// ---- 2. the problem, and our goal ------------------------------------------------------
 
 type Tone = "plain" | "bad" | "good";
 type Point = { icon: LucideIcon; title: string; tone?: Tone };
 
-const TODAY: Point[] = [
-  { icon: PhoneCall, title: "სტუმარი რეცეფციაში რეკავს" },
-  { icon: PhoneCall, title: "რეცეფცია დასუფთავებას ურეკავს" },
-  { icon: CircleHelp, title: "შესრულდა? არავინ იცის.", tone: "bad" },
+const PROBLEM: Point[] = [
+  { icon: PhoneCall, title: "სტუმარი რეცეფციას მიმართავს" },
+  { icon: Unlink, title: "ჯაჭვი პერსონალამდე წყდება" },
+  { icon: Star, title: "ცუდი შეფასება Booking-ზე", tone: "bad" },
 ];
 
-const WITH_US: Point[] = [
-  { icon: Nfc, title: "სტუმარი ტელეფონით ეხება ტეგს", tone: "good" },
-  { icon: Route, title: "დასუფთავება მაშინვე იგებს", tone: "good" },
-  { icon: Check, title: "შესრულდა და ყველამ იცის", tone: "good" },
+const GOAL: Point[] = [
+  { icon: Nfc, title: "სტუმრის ყოველი ქმედება", tone: "good" },
+  { icon: ShieldCheck, title: "სრულიად ანონიმური მონაცემი", tone: "good" },
+  { icon: BarChart3, title: "ანალიზი მენეჯერისთვის", tone: "good" },
 ];
 
-function PointCard({ point, delay }: { point: Point; delay: number }) {
+function PointCard({ point, delay, children }: { point: Point; delay: number; children?: ReactNode }) {
   const { icon: Icon, title, tone = "plain" } = point;
   return (
     <motion.div
@@ -212,12 +217,13 @@ function PointCard({ point, delay }: { point: Point; delay: number }) {
         <Icon className="size-11" />
       </span>
       <span className="text-balance text-[46px] font-medium leading-[1.1] tracking-[-0.02em]">{title}</span>
+      {children}
     </motion.div>
   );
 }
 
-/** The link between two cards: dashed and grey today, solid lime with a moving dot with us. */
-function Link2({ good, delay }: { good: boolean; delay: number }) {
+/** The link between two cards: dashed and grey today, solid lime with a moving dot with us. `label` sits on the line. */
+function Link2({ good, delay, label }: { good: boolean; delay: number; label?: string }) {
   return (
     <div className="relative h-[3px] self-center">
       <motion.span
@@ -236,32 +242,43 @@ function Link2({ good, delay }: { good: boolean; delay: number }) {
           transition={{ delay: delay + 0.3, duration: 1.1, repeat: Infinity, repeatDelay: 0.4 }}
         />
       )}
+      {label && (
+        <motion.span
+          className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full px-3.5 py-1 text-[26px] font-semibold"
+          style={{ background: C.lime, color: "#111110" }}
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ delay: delay + 0.2, type: "spring", stiffness: 300, damping: 18 }}
+        >
+          {label}
+        </motion.span>
+      )}
     </div>
   );
 }
 
 export function IdeaSlide({ step }: SlideProps) {
   const after = step >= 1;
-  const points = after ? WITH_US : TODAY;
+  const points = after ? GOAL : PROBLEM;
   return (
     <AnimatePresence mode="wait">
       <motion.div key={after ? "after" : "before"} className="absolute inset-0 px-[140px] pt-[96px]" exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3 }}>
-        <Eyebrow>{after ? "სტუმარ-მასპინძელით" : "დღეს"}</Eyebrow>
+        <Eyebrow>{after ? "ჩვენი მიზანი" : "პრობლემა"}</Eyebrow>
         <Headline>
           {after ? (
             <>
-              <Words text="საკმარისია" delay={0.1} />
+              <Words text="ვაქრობთ" delay={0.1} />
               <br />
               <span className="relative inline-block">
                 <Scribble className="-inset-x-[8%] -inset-y-[16%] h-[132%] w-[116%]" delay={0.9} />
-                <Word delay={0.3}>ერთი</Word> <Word delay={0.36}>შეხება.</Word>
+                <Word delay={0.3}>ბრმა</Word> <Word delay={0.36}>ზონას.</Word>
               </span>
             </>
           ) : (
             <>
-              <Words text="სტუმარს პირსახოცი სჭირდება." delay={0.1} />
+              <Words text="სასტუმრომ არ იცის," delay={0.1} />
               <br />
-              <Words text="და იწყება ზარები." delay={0.3} />
+              <Words text="რა აწუხებს სტუმარს." delay={0.3} />
             </>
           )}
         </Headline>
@@ -278,12 +295,72 @@ export function IdeaSlide({ step }: SlideProps) {
   );
 }
 
-// ---- 3. features --------------------------------------------------------------------
+// ---- 3. how it works: the NFC tag and the AI, right before the demo ----------------------
+
+const HOW: Point[] = [
+  { icon: Nfc, title: "ტელეფონს თეგს ადებს", tone: "good" },
+  { icon: Languages, title: "ითხოვს საკუთარ ენაზე", tone: "good" },
+  { icon: Route, title: "პირდაპირ თანამშრომელთან", tone: "good" },
+];
+
+/** A guest writing in their own language (here Turkish) to the AI concierge. */
+function GuestBubble() {
+  return (
+    <p className="self-start rounded-[26px] rounded-bl-[8px] px-6 py-4 text-[28px] leading-snug" style={{ background: C.paper, color: "#161615" }}>
+      Lütfen iki temiz havlu getirir misiniz?
+    </p>
+  );
+}
+
+/** What the right staff member gets: the real push text (convex/push.ts), in Georgian. */
+function StaffPush() {
+  return (
+    <div className="flex items-start gap-4 rounded-[26px] bg-white p-5 text-[#161615]">
+      <span className="grid size-12 shrink-0 place-items-center rounded-[14px]" style={{ background: C.ink, color: C.lime }}>
+        <BellRing className="size-6" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[24px] font-semibold leading-tight">ოთახი 214 — სუფთა პირსახოცების მიტანა ×2</span>
+        <span className="mt-1.5 block text-[20px] text-black/55">ახალი მოთხოვნა. გახსენი ინსტრუქცია.</span>
+      </span>
+    </div>
+  );
+}
+
+export function HowSlide() {
+  return (
+    <div className="absolute inset-0 px-[140px] pt-[96px]">
+      <Eyebrow>როგორ ვაკეთებთ ამას?</Eyebrow>
+      <Headline>
+        <Words text="ერთი შეხება." delay={0.1} />
+        <span className="relative inline-block">
+          <Scribble className="-inset-x-[5%] -inset-y-[16%] h-[132%] w-[110%]" delay={0.9} />
+          <Word delay={0.25}>ნებისმიერ</Word> <Word delay={0.31}>ენაზე.</Word>
+        </span>
+      </Headline>
+      <div className="mt-20 grid grid-cols-[1fr_72px_1fr_72px_1fr]">
+        <PointCard point={HOW[0]} delay={0.35}>
+          <p className="text-[30px] leading-snug">გადმოწერის გარეშე, ციფრული მასპინძელი წამებში იხსნება</p>
+        </PointCard>
+        <Link2 good delay={0.55} />
+        <PointCard point={HOW[1]} delay={0.7}>
+          <GuestBubble />
+        </PointCard>
+        <Link2 good delay={0.9} label="AI" />
+        <PointCard point={HOW[2]} delay={1.05}>
+          <StaffPush />
+        </PointCard>
+      </div>
+    </div>
+  );
+}
+
+// ---- features (out of the pitch for now) --------------------------------------------
 
 type Feature = { icon: LucideIcon; title: string };
 
 const FOR_GUESTS: Feature[] = [
-  { icon: Nfc, title: "ტეგზე შეხება, აპლიკაციის გარეშე" },
+  { icon: Nfc, title: "თეგზე შეხება, აპლიკაციის გარეშე" },
   { icon: ConciergeBell, title: "შეკვეთა და დაჯავშნა" },
   { icon: Radio, title: "სტატუსი რეალურ დროში" },
 ];
@@ -329,9 +406,7 @@ export function FeaturesSlide({ step }: SlideProps) {
     <div className="absolute inset-0 px-[140px] pt-[96px]">
       <Eyebrow>ფუნქციები</Eyebrow>
       <Headline>
-        <Words text="ერთი ტეგი." delay={0.1} />
-        <br />
-        <Words text="სასტუმროს ორი მხარე." delay={0.22} />
+        <Words text="ერთი თეგი. ორი მხარე." delay={0.1} />
       </Headline>
       <div className="mt-16 grid grid-cols-2 gap-8">
         <FeatureCard label="სტუმრისთვის" items={FOR_GUESTS} show delay={0.4} lime />
@@ -369,10 +444,13 @@ export function OutroSlide() {
       <h2 className="mt-12 text-[150px] font-medium leading-none tracking-[-0.05em]">
         <Words text="Stumar Maspindzeli" delay={0.4} />
       </h2>
-      <Rise delay={0.85} className="mt-10">
-        <span className="inline-block -rotate-2 font-script text-[120px] leading-none">გმადლობთ!</span>
+      <Rise delay={0.8} className="mt-10 text-[48px]">
+        ვაქცევთ სტუმრის გამოცდილებას ციფრულ, გაზომვად მონაცემად.
       </Rise>
-      <Rise delay={1.25} className="mt-16 text-[40px]">
+      <Rise delay={1.1} className="mt-12">
+        <span className="inline-block -rotate-2 text-[96px] leading-none">მადლობა ყურადღებისთვის!</span>
+      </Rise>
+      <Rise delay={1.45} className="mt-14 text-[36px]">
         stumar-maspindzeli-storefront.vercel.app
       </Rise>
     </div>

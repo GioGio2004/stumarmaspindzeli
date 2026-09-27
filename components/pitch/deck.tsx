@@ -4,13 +4,15 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState, useSyncExternalStore, type ComponentType } from "react";
-import { FeaturesSlide, IdeaSlide, IntroSlide, OutroSlide } from "./slides";
-import { AskSlide, BusinessSlide, MarketSlide, TeamSlide, TractionSlide, UniqueSlide } from "./story";
+import { HowSlide, IdeaSlide, IntroSlide, OutroSlide } from "./slides";
+import { InsightsSlide, SaasSlide, TeamSlide } from "./story";
 import { WorkflowSlide } from "./workflow";
 
-// The pitch deck, in Pitch Canvas order (Best3Minutes). Each slide animates
-// from its `step` prop; `steps` is how many presses it takes before the deck
-// moves on. Add, drop or reorder slides here.
+// The pitch deck, in the order of the spoken pitch (Georgian script). Each slide
+// animates from its `step` prop; `steps` is how many presses it takes before the
+// deck moves on. Add, drop or reorder slides here; slides.tsx and story.tsx also
+// keep earlier slides that are out of the pitch for now (features, market,
+// unique, traction, the ₾5 business model, the ask).
 //
 //   → ↓ Space Enter PageDown (clickers)  next      ← ↑ PageUp Backspace  back
 //   1-9  jump to a slide     F  full screen     Home / End  first / last
@@ -20,16 +22,13 @@ export type SlideProps = { step: number };
 type Slide = { id: string; label: string; steps: number; Component: ComponentType<SlideProps> };
 
 const SLIDES: Slide[] = [
-  { id: "intro", label: "Stumar Maspindzeli", steps: 1, Component: IntroSlide }, // simple statement
-  { id: "pain", label: "The pain", steps: 2, Component: IdeaSlide }, // pain (+ gain)
-  { id: "market", label: "The pain, in numbers", steps: 2, Component: MarketSlide },
-  { id: "product", label: "Product", steps: 2, Component: FeaturesSlide },
+  { id: "intro", label: "Stumar Maspindzeli", steps: 1, Component: IntroSlide },
+  { id: "problem", label: "Problem, then our goal", steps: 2, Component: IdeaSlide },
+  { id: "how", label: "How we do it", steps: 1, Component: HowSlide }, // the NFC + AI paragraph
   { id: "demo", label: "Live demo", steps: 7, Component: WorkflowSlide },
-  { id: "unique", label: "What's unique", steps: 1, Component: UniqueSlide },
-  { id: "traction", label: "Traction", steps: 1, Component: TractionSlide },
-  { id: "business", label: "Business model", steps: 2, Component: BusinessSlide },
+  { id: "insights", label: "Behind the scenes", steps: 2, Component: InsightsSlide },
+  { id: "business", label: "Business model", steps: 1, Component: SaasSlide },
   { id: "team", label: "Team", steps: 1, Component: TeamSlide },
-  { id: "ask", label: "The ask", steps: 2, Component: AskSlide }, // investment + call to action
   { id: "outro", label: "Thank you", steps: 1, Component: OutroSlide },
 ];
 
