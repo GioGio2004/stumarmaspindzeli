@@ -43,7 +43,7 @@ function Settings() {
   const [defaultLanguage, setDefaultLanguage] = useState(hotel.defaultLanguage);
   const [languages, setLanguages] = useState<string[]>(hotel.guestLanguages ?? ["en", "ka", "ru"]);
   const [timezone, setTimezone] = useState(hotel.timezone ?? "Asia/Tbilisi");
-  const [requirePin, setRequirePin] = useState(hotel.requireGuestPin !== false);
+  const [requirePin, setRequirePin] = useState(hotel.requireGuestPin === true);
   const zones = TIMEZONES.includes(timezone) ? TIMEZONES : [timezone, ...TIMEZONES];
 
   const submit = async (e: FormEvent) => {

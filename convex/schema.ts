@@ -169,7 +169,7 @@ const schema = defineSchema({
     guestLanguages: v.optional(v.array(v.string())), // max 8
     brandName: v.optional(v.string()),
     collection: v.optional(v.string()), // "Trademark Collection by Wyndham"
-    requireGuestPin: v.optional(v.boolean()), // default on: guests confirm with the stay PIN
+    requireGuestPin: v.optional(v.boolean()), // default off: when on, guests confirm with the stay PIN
   })
     .index("by_slug", ["slug"])
     .index("by_joinCode", ["joinCode"])
@@ -373,6 +373,16 @@ const schema = defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_endpoint", ["endpoint"]),
+
+  // Who may use a guest AI chat. The thread and its messages live in the agent
+  // component; the phone keeps `secret` and sends it with every call.
+  aiChats: defineTable({
+    hotelId: v.id("hotels"),
+    threadId: v.string(),
+    secret: v.string(),
+    roomId: v.optional(v.id("rooms")), // set when opened from a room tag
+    stayId: v.optional(v.id("stays")), // the stay at that time; a new stay starts a new chat
+  }).index("by_threadId", ["threadId"]),
 });
 
 export default schema;

@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   ListChecks,
   Menu,
+  Presentation,
   Settings,
   Smartphone,
   Users,
@@ -43,6 +44,7 @@ export const NAV: NavItem[] = [
   { href: "/rooms", label: "Rooms", icon: BedDouble, roles: ["manager", "reception"] },
   { href: "/team", label: "Team", icon: Users, roles: ["manager"] },
   { href: "/settings", label: "Settings", icon: Settings, roles: ["manager"] },
+  { href: "/pitch", label: "Pitch deck", icon: Presentation, roles: ["manager"] },
   { href: "/platform", label: "All hotels", icon: Globe2, roles: ["manager"], supervisorOnly: true },
 ];
 

@@ -1,3 +1,4 @@
+import agent from "@convex-dev/agent/convex.config";
 import rateLimiter from "@convex-dev/rate-limiter/convex.config";
 import { defineApp } from "convex/server";
 import { v } from "convex/values";
@@ -23,5 +24,7 @@ const app = defineApp({
 });
 
 app.use(rateLimiter);
+// Threads and messages of the guest AI concierge (convex/guest/ai.ts).
+app.use(agent);
 
 export default app;

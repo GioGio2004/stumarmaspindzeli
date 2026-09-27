@@ -117,9 +117,9 @@ export function newStayCredentials(): { guestPin: string; guestKey: string } {
   return { guestPin: String(buf[0] % 10000).padStart(4, "0"), guestKey: randomToken(24) };
 }
 
-/** Does this stay require the guest's key for requests? (Hotel setting, default on.) */
+/** Does this stay require the guest's key for requests? (Hotel setting, default off.) */
 export function stayNeedsKey(hotel: Doc<"hotels">, stay: Doc<"stays">): boolean {
-  return hotel.requireGuestPin !== false && stay.guestKey !== undefined;
+  return hotel.requireGuestPin === true && stay.guestKey !== undefined;
 }
 
 /** URL-safe random token, used for room NFC/QR links. */

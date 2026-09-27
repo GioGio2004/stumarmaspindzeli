@@ -12,7 +12,7 @@
 @theme inline {
   --font-sans: var(--font-red-hat), var(--font-noto-georgian), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-red-hat), var(--font-noto-georgian), ui-sans-serif, system-ui, sans-serif;
-  --font-script: var(--font-caveat), cursive;
+  --font-script: var(--font-caveat), var(--font-noto-georgian), cursive;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* brand palette */
@@ -164,6 +164,34 @@
   --border: #2f2f2c;
   --input: #2f2f2c;
   --ring: #f3f2ed;
+}
+
+/*
+ * A light-theme island inside a dark page: the pitch deck's replicas of the
+ * admin and guest app always look like the light app. Undoes what `.dark` swaps.
+ */
+.light-island {
+  color-scheme: light;
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --panel: #ecebe8;
+  --paper: #f8f8f6;
+  --ink: #2d2d2d;
+  --graphite: #434343;
+  --lime-soft: #e3ef7a;
+  --slate-ink: #29303d;
+  --panel-hover: #e2e0db;
+  --on-ink-accent: var(--lime);
+  --background: #ffffff;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
+  --muted: #f3f2ef;
+  --muted-foreground: #66665f;
+  --border: #e2e0db;
+  --input: #e2e0db;
+  --ring: var(--ink);
+  color: var(--foreground);
 }
 
 /* Lime always carries dark text, in both themes. */

@@ -311,7 +311,7 @@ function StaySheet({ room, stayId, onClose }: { room: Room | null; stayId: Id<"s
   const checkOut = useMutation(api.stays.checkOut);
   const extend = useMutation(api.stays.extend);
   const resetPin = useMutation(api.stays.resetPin);
-  const pinOn = hotel.requireGuestPin !== false;
+  const pinOn = hotel.requireGuestPin === true;
   const run = useRun();
   const toast = useToast();
 

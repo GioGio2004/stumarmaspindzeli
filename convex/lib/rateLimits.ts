@@ -17,4 +17,8 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   aiDraft: { kind: "token bucket", rate: 30, period: HOUR, capacity: 10 },
   // Guest rating / cancel actions per stay.
   guestAction: { kind: "token bucket", rate: 30, period: HOUR, capacity: 10 },
+  // Guest AI concierge: messages per chat, all chats per hotel, and new chats per hotel.
+  guestAi: { kind: "token bucket", rate: 40, period: HOUR, capacity: 12 },
+  guestAiHotel: { kind: "token bucket", rate: 1200, period: HOUR, capacity: 120 },
+  guestAiStart: { kind: "token bucket", rate: 300, period: HOUR, capacity: 60 },
 });

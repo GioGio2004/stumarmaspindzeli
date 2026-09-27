@@ -13,6 +13,7 @@ import type * as catalog from "../catalog.js";
 import type * as crons from "../crons.js";
 import type * as departments from "../departments.js";
 import type * as escalation from "../escalation.js";
+import type * as guest_ai from "../guest/ai.js";
 import type * as guest_catalog from "../guest/catalog.js";
 import type * as guest_events from "../guest/events.js";
 import type * as guest_pin from "../guest/pin.js";
@@ -58,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   departments: typeof departments;
   escalation: typeof escalation;
+  "guest/ai": typeof guest_ai;
   "guest/catalog": typeof guest_catalog;
   "guest/events": typeof guest_events;
   "guest/pin": typeof guest_pin;
@@ -120,4 +122,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
+  agent: import("@convex-dev/agent/_generated/component.js").ComponentApi<"agent">;
 };
