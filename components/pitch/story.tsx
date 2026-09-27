@@ -299,6 +299,10 @@ const MODEL: { icon: LucideIcon; title: string }[] = [
 ];
 
 export function SaasSlide() {
+  const market = [
+    { value: FACTS.hotels, label: "სასტუმრო საქართველოში" },
+    { value: roomsPerHotel, label: "ოთახი ერთ სასტუმროში", prefix: "~" },
+  ];
   return (
     <div className="absolute inset-0 px-[140px] pt-[96px]">
       <Header eyebrow="ბიზნესმოდელი">
@@ -314,6 +318,21 @@ export function SaasSlide() {
           </Card>
         ))}
       </div>
+      <Rise delay={0.85} className="mt-14">
+        <span className="inline-block -rotate-2 text-[44px] leading-none">ბაზრის ზომა</span>
+      </Rise>
+      <div className="mt-6 grid grid-cols-2 gap-8">
+        {market.map((s, i) => (
+          <Card key={s.label} delay={1 + i * 0.1} className="rounded-[36px] px-10 py-8">
+            <p className="text-[88px] font-medium leading-none tracking-[-0.04em] tabular-nums">
+              {s.prefix}
+              <CountUp to={s.value} delay={1.1 + i * 0.1} />
+            </p>
+            <p className="mt-3 text-[28px] leading-tight">{s.label}</p>
+          </Card>
+        ))}
+      </div>
+      <p className="absolute bottom-10 right-[140px] text-[26px]">წყარო: {FACTS.source}</p>
     </div>
   );
 }
